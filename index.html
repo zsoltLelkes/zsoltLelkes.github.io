@@ -1,37 +1,125 @@
 <!DOCTYPE html>
-<html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Deployment Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
 <body>
-  <h1>Deployments</h1>
-  <pre id="outputDeployments"></pre>
+  <div class="dashboard">
+    <h1>Prehľad nasadení</h1>
+
+    <div id="loading" class="loading">Načítavam nasadenia...</div>
+    <div id="error" class="error" style="display: none;"></div>
+
+    <table class="dashboard-table" id="dashboardTable" style="display: none;">
+      <thead>
+        <tr>
+          <th>Repozitár</th>
+          <th>Prostredie</th>
+          <th>Nasadený tag</th>
+          <th>Čas nasadenia</th>
+          <th>Stav</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+      </tbody>
+    </table>
+  </div>
 
   <script>
-    const ownerDeployments = "zsoltLelkes";
-    const repoDeployments = "zsoltLelkes.github.io";
+    const owner = "zsoltLelkes";
+    const repo = "zsoltLelkes.github.io";
+    const MAX_DEPLOYMENTS = 10;
 
-    fetch(`https://api.github.com/repos/${ownerDeployments}/${repoDeployments}/deployments`)
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("outputDeployments").textContent =
-          JSON.stringify(data, null, 2);
+    function getStatusClass(state) {
+      const map = {
+        success: "status--success",
+        failure: "status--failure",
+        error: "status--error",
+        pending: "status--pending",
+        queued: "status--queued",
+        in_progress: "status--in_progress"
+      };
+      return map[state] || "status--loading";
+    }
+
+    function formatDate(isoString) {
+      if (!isoString) return "—";
+      const date = new Date(isoString);
+      return date.toLocaleString("sk-SK", {
+        dateStyle: "medium",
+        timeStyle: "short"
+      });
+    }
+
+    function showError(msg) {
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("dashboardTable").style.display = "none";
+      const err = document.getElementById("error");
+      err.textContent = msg;
+      err.style.display = "block";
+    }
+
+    function fetchDeploymentStatus(deploymentId) {
+      return fetch(
+        `https://api.github.com/repos/${owner}/${repo}/deployments/${deploymentId}/statuses`
+      )
+        .then((res) => res.json())
+        .then((statuses) => (statuses && statuses[0] ? statuses[0].state : null))
+        .catch(() => null);
+    }
+
+    fetch(`https://api.github.com/repos/${owner}/${repo}/deployments`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
       })
-      .catch(err => console.error(err));
-  </script>
+      .then((deployments) => {
+        const limited = deployments.slice(0, MAX_DEPLOYMENTS);
+        if (limited.length === 0) {
+          document.getElementById("loading").textContent = "Žiadne nasadenia.";
+          document.getElementById("loading").style.display = "block";
+          document.getElementById("dashboardTable").style.display = "none";
+          return;
+        }
 
-  <h1>Status</h1>
-  <pre id="outputStatus"></pre>
-
-  <script>
-    const ownerStatus = "zsoltLelkes";
-    const repoStatus = "zsoltLelkes.github.io";
-    const deployment_id = "4113777939"
-
-    fetch(`https://api.github.com/repos/${ownerStatus}/${repoStatus}/deployments/${deployment_id}/statuses`)
-      .then(res => res.json())
-      .then(data => {
-        document.getElementById("outputStatus").textContent =
-          JSON.stringify(data, null, 2);
+        return Promise.all(
+          limited.map((d) =>
+            fetchDeploymentStatus(d.id).then((state) => ({
+              ...d,
+              state: state || "—"
+            }))
+          )
+        );
       })
-      .catch(err => console.error(err));
+      .then((rows) => {
+        if (!rows) return;
+        document.getElementById("loading").style.display = "none";
+        document.getElementById("dashboardTable").style.display = "table";
+
+        const tbody = document.getElementById("tableBody");
+        tbody.innerHTML = "";
+
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
+          const env = row.environment || "—";
+          const state = row.state === "—" ? "—" : row.state;
+          const statusClass =
+            state === "—" ? "status--loading" : getStatusClass(state);
+
+          tr.innerHTML = `
+            <td>${repo}</td>
+            <td>${env}</td>
+            <td>${row.ref || "—"}</td>
+            <td>${formatDate(row.created_at)}</td>
+            <td><span class="status ${statusClass}">${state}</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      })
+      .catch((err) => showError("Chyba pri načítavaní: " + err.message));
   </script>
 </body>
 </html>
