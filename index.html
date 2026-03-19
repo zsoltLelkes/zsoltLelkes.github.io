@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h1>Deployments</h1>
+  <pre id="output"></pre>
+
+  <script>
+    const owner = "zsoltLelkes";
+    const repo = "inventoryrental";
+
+    fetch(`https://api.github.com/repos/${owner}/${repo}/deployments`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("output").textContent =
+          JSON.stringify(data, null, 2);
+      })
+      .catch(err => console.error(err));
+  </script>
+</body>
+</html>
