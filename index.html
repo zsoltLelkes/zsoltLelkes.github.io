@@ -2,16 +2,33 @@
 <html>
 <body>
   <h1>Deployments</h1>
-  <pre id="output"></pre>
+  <pre id="outputDeployments"></pre>
 
   <script>
-    const owner = "zsoltLelkes";
-    const repo = "zsoltLelkes.github.io";
+    const ownerDeployments = "zsoltLelkes";
+    const repoDeployments = "zsoltLelkes.github.io";
 
-    fetch(`https://api.github.com/repos/${owner}/${repo}/deployments`)
+    fetch(`https://api.github.com/repos/${ownerDeployments}/${repoDeployments}/deployments`)
       .then(res => res.json())
       .then(data => {
-        document.getElementById("output").textContent =
+        document.getElementById("outputDeployments").textContent =
+          JSON.stringify(data, null, 2);
+      })
+      .catch(err => console.error(err));
+  </script>
+
+  <h1>Status</h1>
+  <pre id="outputStatus"></pre>
+
+  <script>
+    const ownerStatus = "zsoltLelkes";
+    const repoStatus = "zsoltLelkes.github.io";
+    const deploymentId = "4113777939"
+
+    fetch(`https://api.github.com/repos/{owner}/{repo}/deployments/{deployment_id}/statuses`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("outputStatus").textContent =
           JSON.stringify(data, null, 2);
       })
       .catch(err => console.error(err));
