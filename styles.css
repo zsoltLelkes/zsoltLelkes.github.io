@@ -105,6 +105,11 @@ body {
   color: #6c757d;
 }
 
+.status--inactive {
+  background: #e9ecef;
+  color: #6c757d;
+}
+
 .loading {
   padding: 2rem;
   text-align: center;

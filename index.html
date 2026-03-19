@@ -29,9 +29,7 @@
   </div>
 
   <script>
-    const owner = "zsoltLelkes";
-    const repo = "zsoltLelkes.github.io";
-    const MAX_DEPLOYMENTS = 5;
+    const MAX_DEPLOYMENTS_PER_REPO = 5;
 
     function getStatusClass(state) {
       const map = {
@@ -40,7 +38,8 @@
         error: "status--error",
         pending: "status--pending",
         queued: "status--queued",
-        in_progress: "status--in_progress"
+        in_progress: "status--in_progress",
+        inactive: "status--inactive"
       };
       return map[state] || "status--loading";
     }
@@ -62,7 +61,7 @@
       err.style.display = "block";
     }
 
-    function fetchDeploymentStatus(deploymentId) {
+    function fetchDeploymentStatus(owner, repo, deploymentId) {
       return fetch(
         `https://api.github.com/repos/${owner}/${repo}/deployments/${deploymentId}/statuses`
       )
@@ -71,31 +70,65 @@
         .catch(() => null);
     }
 
-    fetch(`https://api.github.com/repos/${owner}/${repo}/deployments`)
+    function fetchRepoDeployments(owner, repo) {
+      return fetch(
+        `https://api.github.com/repos/${owner}/${repo}/deployments`
+      )
+        .then((res) => {
+          if (!res.ok) throw new Error(`${owner}/${repo}: HTTP ${res.status}`);
+          return res.json();
+        })
+        .then((deployments) => {
+          const limited = deployments.slice(0, MAX_DEPLOYMENTS_PER_REPO);
+          return Promise.all(
+            limited.map((d) =>
+              fetchDeploymentStatus(owner, repo, d.id).then((state) => ({
+                ...d,
+                owner,
+                repo,
+                state: state || "—"
+              }))
+            )
+          );
+        })
+        .catch((err) => {
+          console.warn("Chyba pre " + owner + "/" + repo + ":", err);
+          return [];
+        });
+    }
+
+    fetch("config.json")
       .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) throw new Error("Nepodarilo sa načítať config.json");
         return res.json();
       })
-      .then((deployments) => {
-        const limited = deployments.slice(0, MAX_DEPLOYMENTS);
-        if (limited.length === 0) {
+      .then((config) => {
+        const { organization, repositories } = config;
+        if (!organization || !repositories || !Array.isArray(repositories)) {
+          throw new Error("Neplatná konfigurácia: očakáva sa organization a repositories");
+        }
+        if (repositories.length === 0) {
+          document.getElementById("loading").textContent = "Žiadne repozitáre v konfigurácii.";
+          return null;
+        }
+        return Promise.all(
+          repositories.map((repo) => fetchRepoDeployments(organization, repo))
+        ).then((allRows) => ({ organization, allRows }));
+      })
+      .then((result) => {
+        if (!result) return;
+        const { organization, allRows } = result;
+        const rows = allRows.flat();
+
+        if (rows.length === 0) {
           document.getElementById("loading").textContent = "Žiadne nasadenia.";
           document.getElementById("loading").style.display = "block";
           document.getElementById("dashboardTable").style.display = "none";
           return;
         }
 
-        return Promise.all(
-          limited.map((d) =>
-            fetchDeploymentStatus(d.id).then((state) => ({
-              ...d,
-              state: state || "—"
-            }))
-          )
-        );
-      })
-      .then((rows) => {
-        if (!rows) return;
+        rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+
         document.getElementById("loading").style.display = "none";
         document.getElementById("dashboardTable").style.display = "table";
 
@@ -109,9 +142,9 @@
           const statusClass =
             state === "—" ? "status--loading" : getStatusClass(state);
 
-          const repoUrl = `https://github.com/${owner}/${repo}`;
+          const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
           tr.innerHTML = `
-            <td><a href="${repoUrl}" target="_blank" rel="noopener">${repo}</a></td>
+            <td><a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a></td>
             <td>${env}</td>
             <td>${row.ref || "—"}</td>
             <td>${formatDate(row.created_at)}</td>
