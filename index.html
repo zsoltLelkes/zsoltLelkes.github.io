@@ -208,13 +208,16 @@
         container.style.display = "block";
         container.innerHTML = "";
 
+        const filterBar = buildFilterBar();
+        container.appendChild(filterBar);
+
         Object.keys(byEnv)
           .sort()
           .forEach((env) => {
             const envRows = byEnv[env];
 
             const table = document.createElement("table");
-            table.className = "dashboard-table";
+            table.className = "dashboard-table dashboard-data-table";
             table.innerHTML = `
               <thead>
                 <tr>
@@ -249,8 +252,97 @@
 
             container.appendChild(table);
           });
+
+        setupClientFilters();
       })
       .catch((err) => showError("Chyba pri načítavaní: " + err.message));
+
+    function buildFilterBar() {
+      const wrap = document.createElement("div");
+      wrap.className = "filter-bar";
+      wrap.innerHTML = `
+        <p class="filter-bar__hint">Filtrovanie len v prehliadači (načítané dáta, bez volania API).</p>
+        <p class="filter-empty" id="filterEmptyMessage" hidden>Žiadny riadok nevyhovuje zadaným filtrom.</p>
+        <table class="dashboard-table dashboard-filter">
+          <thead>
+            <tr>
+              <th>Prostredie</th>
+              <th>Repozitár</th>
+              <th>Nasadený tag</th>
+              <th>Čas nasadenia</th>
+              <th>Stav</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><input type="search" class="filter-input" data-filter-col="0" placeholder="Hľadať…" autocomplete="off" spellcheck="false" aria-label="Filter: prostredie" /></td>
+              <td><input type="search" class="filter-input" data-filter-col="1" placeholder="Hľadať…" autocomplete="off" spellcheck="false" aria-label="Filter: repozitár" /></td>
+              <td><input type="search" class="filter-input" data-filter-col="2" placeholder="Hľadať…" autocomplete="off" spellcheck="false" aria-label="Filter: tag" /></td>
+              <td><input type="search" class="filter-input" data-filter-col="3" placeholder="Hľadať…" autocomplete="off" spellcheck="false" aria-label="Filter: čas" /></td>
+              <td class="filter-cell--actions">
+                <input type="search" class="filter-input" data-filter-col="4" placeholder="Stav…" autocomplete="off" spellcheck="false" aria-label="Filter: stav" />
+                <button type="button" class="filter-clear" title="Vymazať všetky filtre">Vyčistiť</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+      return wrap;
+    }
+
+    function applyClientFilters() {
+      const inputs = document.querySelectorAll(".filter-input");
+      const filters = Array.from(inputs).map((el) =>
+        (el.value || "").trim().toLowerCase()
+      );
+
+      let totalVisible = 0;
+      document.querySelectorAll("table.dashboard-data-table").forEach((table) => {
+        let visibleCount = 0;
+        table.querySelectorAll("tbody tr").forEach((tr) => {
+          const tds = tr.querySelectorAll("td");
+          let match = true;
+          for (let i = 0; i < 5; i++) {
+            if (!filters[i]) continue;
+            const cellText = (tds[i] && tds[i].textContent) || "";
+            if (!cellText.toLowerCase().includes(filters[i])) {
+              match = false;
+              break;
+            }
+          }
+          tr.hidden = !match;
+          if (match) visibleCount += 1;
+        });
+        table.hidden = visibleCount === 0;
+        totalVisible += visibleCount;
+      });
+
+      const emptyMsg = document.getElementById("filterEmptyMessage");
+      if (emptyMsg) emptyMsg.hidden = totalVisible > 0;
+    }
+
+    function setupClientFilters() {
+      const bar = document.querySelector(".filter-bar");
+      if (!bar) return;
+
+      bar.querySelectorAll(".filter-input").forEach((input) => {
+        input.addEventListener("input", applyClientFilters);
+        input.addEventListener("search", applyClientFilters);
+      });
+
+      const clearBtn = bar.querySelector(".filter-clear");
+      if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+          bar.querySelectorAll(".filter-input").forEach((el) => {
+            el.value = "";
+          });
+          applyClientFilters();
+          bar.querySelector(".filter-input")?.focus();
+        });
+      }
+
+      applyClientFilters();
+    }
   </script>
 </body>
 </html>

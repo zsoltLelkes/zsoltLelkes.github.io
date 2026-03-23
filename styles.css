@@ -80,16 +80,20 @@ body {
   vertical-align: middle;
 }
 
-.dashboard-table tbody tr:nth-child(even) {
+.dashboard-data-table tbody tr:nth-child(even) {
   background: #f8fafc;
 }
 
-.dashboard-table tbody tr:nth-child(odd) {
+.dashboard-data-table tbody tr:nth-child(odd) {
   background: #fff;
 }
 
-.dashboard-table tbody tr:hover {
+.dashboard-data-table tbody tr:hover {
   background: #eef4fa;
+}
+
+.dashboard-data-table tbody tr[hidden] {
+  display: none;
 }
 
 .dashboard-table a {
@@ -154,4 +158,105 @@ body {
   color: #721c24;
   border-radius: 4px;
   margin-top: 1rem;
+}
+
+/* Filter panel (iba FE, bez API) */
+.filter-bar {
+  margin-bottom: 1.25rem;
+}
+
+.filter-bar__hint {
+  margin: 0 0 0.5rem 0;
+  font-size: 0.875rem;
+  color: #5a6c7d;
+}
+
+.filter-empty {
+  margin: 0 0 0.75rem 0;
+  padding: 0.65rem 0.75rem;
+  font-size: 0.875rem;
+  color: #856404;
+  background: #fff3cd;
+  border: 1px solid #e6d89c;
+  border-radius: 4px;
+}
+
+.dashboard-filter {
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-filter tbody td {
+  white-space: normal;
+  vertical-align: middle;
+  background: #f8fafc;
+}
+
+.dashboard-filter tbody tr:hover {
+  background: transparent;
+}
+
+.filter-input {
+  width: 100%;
+  min-width: 0;
+  padding: 0.45rem 0.6rem;
+  font: inherit;
+  font-size: 0.875rem;
+  border: 1px solid #c5d0db;
+  border-radius: 4px;
+  background: #fff;
+}
+
+.filter-input:focus {
+  outline: none;
+  border-color: #245179;
+  box-shadow: 0 0 0 2px rgba(36, 81, 121, 0.2);
+}
+
+.filter-cell--actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filter-cell--actions .filter-input {
+  flex: 1 1 6rem;
+  min-width: 4rem;
+}
+
+.filter-clear {
+  flex: 0 0 auto;
+  cursor: pointer;
+  padding: 0.45rem 0.75rem;
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #245179;
+  background: #fff;
+  border: 1px solid #245179;
+  border-radius: 4px;
+}
+
+.filter-clear:hover {
+  background: #eef4fa;
+}
+
+.filter-clear:focus-visible {
+  outline: 2px solid #245179;
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .filter-cell--actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-clear {
+    width: 100%;
+  }
+
+  body {
+    padding: 1rem;
+  }
 }
