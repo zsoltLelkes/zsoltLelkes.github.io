@@ -165,12 +165,6 @@ body {
   margin-bottom: 1.25rem;
 }
 
-.filter-bar__hint {
-  margin: 0 0 0.5rem 0;
-  font-size: 0.875rem;
-  color: #5a6c7d;
-}
-
 .filter-empty {
   margin: 0 0 0.75rem 0;
   padding: 0.65rem 0.75rem;
