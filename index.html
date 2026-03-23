@@ -17,7 +17,20 @@
   </div>
 
   <script>
-    const MAX_DEPLOYMENTS_PER_REPO = 1;
+    /**
+     * Max. počet riadkov (nasadení) v jednej tabuľke prostredia po zlúčení všetkých repozitárov z configu.
+     * Zoradené od najnovšieho; zvyšok sa nezobrazí.
+     */
+    const MAX_DEPLOYMENTS_PER_ENVIRONMENT = 100;
+
+    /** Koľko najnovších nasadení prehľadáme na zistenie názvov prostredí. */
+    const DISCOVER_DEPLOYMENTS_PAGE_SIZE = 1;
+
+    function deploymentEnvironmentKey(d) {
+      return d.environment && String(d.environment).trim() !== ""
+        ? d.environment
+        : "—";
+    }
 
     function getStatusClass(state) {
       const map = {
@@ -49,35 +62,82 @@
       err.style.display = "block";
     }
 
+    /** Najnovší stav z /statuses (podľa created_at), nie len prvý prvok poľa. */
     function fetchDeploymentStatus(owner, repo, deploymentId) {
       return fetch(
         `https://api.github.com/repos/${owner}/${repo}/deployments/${deploymentId}/statuses`
       )
         .then((res) => res.json())
-        .then((statuses) => (statuses && statuses[0] ? statuses[0].state : null))
+        .then((statuses) => {
+          if (!Array.isArray(statuses) || statuses.length === 0) return null;
+          const sorted = [...statuses].sort(
+            (a, b) =>
+              new Date(b.created_at || 0) - new Date(a.created_at || 0)
+          );
+          const latest = sorted[0];
+          return latest && latest.state ? latest.state : null;
+        })
         .catch(() => null);
     }
 
     function fetchRepoDeployments(owner, repo) {
       return fetch(
-        `https://api.github.com/repos/${owner}/${repo}/deployments`
+        `https://api.github.com/repos/${owner}/${repo}/deployments?per_page=${DISCOVER_DEPLOYMENTS_PAGE_SIZE}`
       )
         .then((res) => {
           if (!res.ok) throw new Error(`${owner}/${repo}: HTTP ${res.status}`);
           return res.json();
         })
         .then((deployments) => {
-          const limited = deployments.slice(0, MAX_DEPLOYMENTS_PER_REPO);
-          return Promise.all(
-            limited.map((d) =>
-              fetchDeploymentStatus(owner, repo, d.id).then((state) => ({
-                ...d,
-                owner,
-                repo,
-                state: state || "—"
-              }))
+          const discoverList = Array.isArray(deployments) ? deployments : [];
+          const envNames = new Set(discoverList.map(deploymentEnvironmentKey));
+
+          const perEnvLists = Array.from(envNames).map((envName) => {
+            if (envName === "—") {
+              const filtered = discoverList
+                .filter((d) => deploymentEnvironmentKey(d) === "—")
+                .sort(
+                  (a, b) =>
+                    new Date(b.created_at) - new Date(a.created_at)
+                )
+                .slice(0, MAX_DEPLOYMENTS_PER_ENVIRONMENT);
+              return Promise.resolve(filtered);
+            }
+            return fetch(
+              `https://api.github.com/repos/${owner}/${repo}/deployments?` +
+                new URLSearchParams({
+                  environment: envName,
+                  per_page: String(MAX_DEPLOYMENTS_PER_ENVIRONMENT)
+                })
             )
-          );
+              .then((r) => (r.ok ? r.json() : []))
+              .then((list) =>
+                (Array.isArray(list) ? list : []).slice(
+                  0,
+                  MAX_DEPLOYMENTS_PER_ENVIRONMENT
+                )
+              );
+          });
+
+          return Promise.all(perEnvLists).then((lists) => {
+            const merged = lists.flat();
+            const seen = new Set();
+            const unique = merged.filter((d) => {
+              if (seen.has(d.id)) return false;
+              seen.add(d.id);
+              return true;
+            });
+            return Promise.all(
+              unique.map((d) =>
+                fetchDeploymentStatus(owner, repo, d.id).then((state) => ({
+                  ...d,
+                  owner,
+                  repo,
+                  state: state || "—"
+                }))
+              )
+            );
+          });
         })
         .catch((err) => {
           console.warn("Chyba pre " + owner + "/" + repo + ":", err);
@@ -123,7 +183,10 @@
         });
 
         Object.keys(byEnv).forEach((env) => {
-          byEnv[env].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+          byEnv[env].sort(
+            (a, b) => new Date(b.created_at) - new Date(a.created_at)
+          );
+          byEnv[env] = byEnv[env].slice(0, MAX_DEPLOYMENTS_PER_ENVIRONMENT);
         });
 
         document.getElementById("loading").style.display = "none";
