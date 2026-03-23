@@ -21,10 +21,10 @@
      * Max. počet riadkov (nasadení) v jednej tabuľke prostredia po zlúčení všetkých repozitárov z configu.
      * Zoradené od najnovšieho; zvyšok sa nezobrazí.
      */
-    const MAX_DEPLOYMENTS_PER_ENVIRONMENT = 1;
+    const MAX_DEPLOYMENTS_PER_ENVIRONMENT = 20;
 
     /** Koľko najnovších nasadení prehľadáme na zistenie názvov prostredí. */
-    const DISCOVER_DEPLOYMENTS_PAGE_SIZE = 100;
+    const DISCOVER_DEPLOYMENTS_PAGE_SIZE = 20;
 
     function deploymentEnvironmentKey(d) {
       return d.environment && String(d.environment).trim() !== ""
