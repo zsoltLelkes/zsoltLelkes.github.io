@@ -18,13 +18,10 @@
 
   <script>
     /**
-     * Max. počet riadkov (nasadení) v jednej tabuľke prostredia po zlúčení všetkých repozitárov z configu.
-     * Zoradené od najnovšieho; zvyšok sa nezobrazí.
+     * Koľko najnovších nasadení prehľadáme na zistenie názvov prostredí u daného repozitára.
+     * (Samotné zobrazenie: vždy len 1 najnovšie nasadenie na pár repozitár + prostredie.)
      */
-    const MAX_DEPLOYMENTS_PER_ENVIRONMENT = 20;
-
-    /** Koľko najnovších nasadení prehľadáme na zistenie názvov prostredí. */
-    const DISCOVER_DEPLOYMENTS_PAGE_SIZE = 20;
+    const DISCOVER_DEPLOYMENTS_PAGE_SIZE = 10;
 
     function deploymentEnvironmentKey(d) {
       return d.environment && String(d.environment).trim() !== ""
@@ -80,6 +77,10 @@
         .catch(() => null);
     }
 
+    /**
+     * Pre daný repozitár: pre každé prostredie najviac jedno nasadenie – najnovšie
+     * (GitHub vracia zoradené od najnovšieho; berieme per_page=1 pri filtri environment).
+     */
     function fetchRepoDeployments(owner, repo) {
       return fetch(
         `https://api.github.com/repos/${owner}/${repo}/deployments?per_page=${DISCOVER_DEPLOYMENTS_PAGE_SIZE}`
@@ -94,29 +95,26 @@
 
           const perEnvLists = Array.from(envNames).map((envName) => {
             if (envName === "—") {
-              const filtered = discoverList
+              const best = discoverList
                 .filter((d) => deploymentEnvironmentKey(d) === "—")
                 .sort(
                   (a, b) =>
                     new Date(b.created_at) - new Date(a.created_at)
-                )
-                .slice(0, MAX_DEPLOYMENTS_PER_ENVIRONMENT);
-              return Promise.resolve(filtered);
+                )[0];
+              return Promise.resolve(best ? [best] : []);
             }
             return fetch(
               `https://api.github.com/repos/${owner}/${repo}/deployments?` +
                 new URLSearchParams({
                   environment: envName,
-                  per_page: String(MAX_DEPLOYMENTS_PER_ENVIRONMENT)
+                  per_page: "1"
                 })
             )
               .then((r) => (r.ok ? r.json() : []))
-              .then((list) =>
-                (Array.isArray(list) ? list : []).slice(
-                  0,
-                  MAX_DEPLOYMENTS_PER_ENVIRONMENT
-                )
-              );
+              .then((list) => {
+                const arr = Array.isArray(list) ? list : [];
+                return arr.length ? [arr[0]] : [];
+              });
           });
 
           return Promise.all(perEnvLists).then((lists) => {
@@ -145,6 +143,23 @@
         });
     }
 
+    /** Ak je ten istý repozitár v config 2× alebo z API duplicita – nech ostane novší záznam. */
+    function dedupeByRepoAndEnvironment(rows) {
+      const map = new Map();
+      rows.forEach((row) => {
+        const env = row.environment || "—";
+        const key = `${row.owner}/${row.repo}\0${env}`;
+        const prev = map.get(key);
+        if (
+          !prev ||
+          new Date(row.created_at) > new Date(prev.created_at)
+        ) {
+          map.set(key, row);
+        }
+      });
+      return Array.from(map.values());
+    }
+
     fetch("config.json")
       .then((res) => {
         if (!res.ok) throw new Error("Nepodarilo sa načítať config.json");
@@ -166,7 +181,7 @@
       .then((result) => {
         if (!result) return;
         const { organization, allRows } = result;
-        const rows = allRows.flat();
+        const rows = dedupeByRepoAndEnvironment(allRows.flat());
 
         if (rows.length === 0) {
           document.getElementById("loading").textContent = "Žiadne nasadenia.";
@@ -183,10 +198,9 @@
         });
 
         Object.keys(byEnv).forEach((env) => {
-          byEnv[env].sort(
-            (a, b) => new Date(b.created_at) - new Date(a.created_at)
+          byEnv[env].sort((a, b) =>
+            String(a.repo).localeCompare(String(b.repo), "sk")
           );
-          byEnv[env] = byEnv[env].slice(0, MAX_DEPLOYMENTS_PER_ENVIRONMENT);
         });
 
         document.getElementById("loading").style.display = "none";
