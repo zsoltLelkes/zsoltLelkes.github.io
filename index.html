@@ -136,11 +136,6 @@
           .forEach((env) => {
             const envRows = byEnv[env];
 
-            const heading = document.createElement("h2");
-            heading.className = "dashboard-section-title";
-            heading.textContent = env;
-            container.appendChild(heading);
-
             const table = document.createElement("table");
             table.className = "dashboard-table";
             table.innerHTML = `

@@ -25,17 +25,6 @@ body {
   color: #245179;
 }
 
-.dashboard-section-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin: 1.5rem 0 0.75rem 0;
-  color: #245179;
-}
-
-.dashboard-section-title:first-child {
-  margin-top: 0;
-}
-
 .dashboard-table {
   width: 100%;
   border-collapse: collapse;
