@@ -10,4 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: development
     steps:
-      - run: echo "Deploy to staging"
+      - name: Simulate deploy
+        run: |
+          echo "Deploying..."
+          sleep 2
+          echo "Done"
