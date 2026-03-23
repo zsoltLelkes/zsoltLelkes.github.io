@@ -80,68 +80,16 @@ body {
   vertical-align: middle;
 }
 
-.dashboard-table .deployment-row.row--stripe-a {
-  background: #fff;
-}
-
-.dashboard-table .deployment-row.row--stripe-b {
+.dashboard-table tbody tr:nth-child(even) {
   background: #f8fafc;
 }
 
-.dashboard-table .deployment-row:hover {
+.dashboard-table tbody tr:nth-child(odd) {
+  background: #fff;
+}
+
+.dashboard-table tbody tr:hover {
   background: #eef4fa;
-}
-
-/* Predvolene len prvý riadok; ostatné po kliknutí na rozbalenie */
-.dashboard-table .deployment-row--extra {
-  display: none;
-}
-
-.dashboard-table.is-expanded .deployment-row--extra {
-  display: table-row;
-}
-
-/* Posledný „rozbaľovací“ riadok – trojuholník v poslednom stĺpci */
-.dashboard-table .expand-row td {
-  vertical-align: middle;
-}
-
-.dashboard-table .expand-row__spacer {
-  border: 1px solid #e0e4e8;
-  padding: 0.35rem 1rem;
-  background: #f0f4f8;
-}
-
-.dashboard-table .expand-cell {
-  text-align: center;
-  border: 1px solid #e0e4e8;
-  padding: 0.35rem 1rem;
-  background: #f0f4f8;
-}
-
-.expand-toggle {
-  cursor: pointer;
-  border: none;
-  background: transparent;
-  padding: 0.25rem 0.5rem;
-  line-height: 1;
-  color: #245179;
-}
-
-.expand-toggle:hover {
-  opacity: 0.85;
-}
-
-.expand-toggle:focus-visible {
-  outline: 2px solid #245179;
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-
-.expand-toggle__icon {
-  display: inline-block;
-  font-size: 0.65rem;
-  line-height: 1;
 }
 
 .dashboard-table a {

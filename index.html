@@ -17,8 +17,7 @@
   </div>
 
   <script>
-    /** Max. počet nasadení načítaných z API na repozitár (po rozbalení ich uvidíš všetky až po tento limit). */
-    const MAX_DEPLOYMENTS_FETCHED_PER_REPO = 50;
+    const MAX_DEPLOYMENTS_PER_REPO = 5;
 
     function getStatusClass(state) {
       const map = {
@@ -68,7 +67,7 @@
           return res.json();
         })
         .then((deployments) => {
-          const limited = deployments.slice(0, MAX_DEPLOYMENTS_FETCHED_PER_REPO);
+          const limited = deployments.slice(0, MAX_DEPLOYMENTS_PER_REPO);
           return Promise.all(
             limited.map((d) =>
               fetchDeploymentStatus(owner, repo, d.id).then((state) => ({
@@ -153,12 +152,8 @@
             `;
 
             const tbody = table.querySelector("tbody");
-            envRows.forEach((row, rowIndex) => {
+            envRows.forEach((row) => {
               const tr = document.createElement("tr");
-              tr.className =
-                "deployment-row " +
-                (rowIndex > 0 ? "deployment-row--extra " : "") +
-                (rowIndex % 2 === 0 ? "row--stripe-a" : "row--stripe-b");
               const envLabel = row.environment || "—";
               const state = row.state === "—" ? "—" : row.state;
               const statusClass =
@@ -174,33 +169,6 @@
               `;
               tbody.appendChild(tr);
             });
-
-            if (envRows.length > 1) {
-              const trExpand = document.createElement("tr");
-              trExpand.className = "expand-row";
-              trExpand.innerHTML = `
-                <td colspan="4" class="expand-row__spacer"></td>
-                <td class="expand-cell">
-                  <button type="button" class="expand-toggle" aria-expanded="false" aria-label="Zobraziť ďalšie nasadenia">
-                    <span class="expand-toggle__icon" aria-hidden="true">▼</span>
-                  </button>
-                </td>
-              `;
-              tbody.appendChild(trExpand);
-
-              const btn = trExpand.querySelector(".expand-toggle");
-              btn.addEventListener("click", () => {
-                const expanded = table.classList.toggle("is-expanded");
-                btn.setAttribute("aria-expanded", expanded ? "true" : "false");
-                btn.setAttribute(
-                  "aria-label",
-                  expanded ? "Skryť ďalšie nasadenia" : "Zobraziť ďalšie nasadenia"
-                );
-                trExpand.querySelector(".expand-toggle__icon").textContent = expanded
-                  ? "▲"
-                  : "▼";
-              });
-            }
 
             container.appendChild(table);
           });
