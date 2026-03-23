@@ -17,21 +17,8 @@
   </div>
 
   <script>
-    /**
-     * Max. počet nasadení na repozitár **na každé prostredie** (nie spolu cez celý repozitár).
-     * GitHub API: jedno volanie ?per_page=N vracia N najnovších nasadení celkovo – preto načítavame
-     * osobitne pre každé prostredie (?environment=…).
-     */
-    const MAX_DEPLOYMENTS_PER_REPO = 3;
-
-    /** Koľko najnovších nasadení prehľadáme na objavenie názvov prostredí (pred načítaním per-env). */
-    const DISCOVER_DEPLOYMENTS_PAGE_SIZE = 100;
-
-    function deploymentEnvironmentKey(d) {
-      return d.environment && String(d.environment).trim() !== ""
-        ? d.environment
-        : "—";
-    }
+    /** Max. počet nasadení načítaných z API na jeden repozitár (GitHub vracia stránkovanie – berieme len prvých N). */
+    const MAX_DEPLOYMENTS_PER_REPO = 5;
 
     function getStatusClass(state) {
       const map = {
@@ -74,62 +61,25 @@
 
     function fetchRepoDeployments(owner, repo) {
       return fetch(
-        `https://api.github.com/repos/${owner}/${repo}/deployments?per_page=${DISCOVER_DEPLOYMENTS_PAGE_SIZE}`
+        `https://api.github.com/repos/${owner}/${repo}/deployments?per_page=${MAX_DEPLOYMENTS_PER_REPO}`
       )
         .then((res) => {
           if (!res.ok) throw new Error(`${owner}/${repo}: HTTP ${res.status}`);
           return res.json();
         })
         .then((deployments) => {
-          const discoverList = Array.isArray(deployments) ? deployments : [];
-          const envNames = new Set(discoverList.map(deploymentEnvironmentKey));
-
-          const perEnvLists = Array.from(envNames).map((envName) => {
-            if (envName === "—") {
-              const filtered = discoverList
-                .filter((d) => deploymentEnvironmentKey(d) === "—")
-                .sort(
-                  (a, b) =>
-                    new Date(b.created_at) - new Date(a.created_at)
-                )
-                .slice(0, MAX_DEPLOYMENTS_PER_REPO);
-              return Promise.resolve(filtered);
-            }
-            return fetch(
-              `https://api.github.com/repos/${owner}/${repo}/deployments?` +
-                new URLSearchParams({
-                  environment: envName,
-                  per_page: String(MAX_DEPLOYMENTS_PER_REPO)
-                })
+          const list = Array.isArray(deployments) ? deployments : [];
+          const limited = list.slice(0, MAX_DEPLOYMENTS_PER_REPO);
+          return Promise.all(
+            limited.map((d) =>
+              fetchDeploymentStatus(owner, repo, d.id).then((state) => ({
+                ...d,
+                owner,
+                repo,
+                state: state || "—"
+              }))
             )
-              .then((r) => (r.ok ? r.json() : []))
-              .then((list) =>
-                (Array.isArray(list) ? list : []).slice(
-                  0,
-                  MAX_DEPLOYMENTS_PER_REPO
-                )
-              );
-          });
-
-          return Promise.all(perEnvLists).then((lists) => {
-            const merged = lists.flat();
-            const seen = new Set();
-            const unique = merged.filter((d) => {
-              if (seen.has(d.id)) return false;
-              seen.add(d.id);
-              return true;
-            });
-            return Promise.all(
-              unique.map((d) =>
-                fetchDeploymentStatus(owner, repo, d.id).then((state) => ({
-                  ...d,
-                  owner,
-                  repo,
-                  state: state || "—"
-                }))
-              )
-            );
-          });
+          );
         })
         .catch((err) => {
           console.warn("Chyba pre " + owner + "/" + repo + ":", err);
