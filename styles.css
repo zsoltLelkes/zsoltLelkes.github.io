@@ -25,6 +25,17 @@ body {
   color: #245179;
 }
 
+.dashboard-section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.75rem 0;
+  color: #245179;
+}
+
+.dashboard-section-title:first-child {
+  margin-top: 0;
+}
+
 .dashboard-table {
   width: 100%;
   border-collapse: collapse;
@@ -32,6 +43,7 @@ body {
   border-radius: 4px;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  margin-bottom: 2rem;
 }
 
 .dashboard-table th {

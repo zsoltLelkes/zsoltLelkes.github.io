@@ -13,19 +13,7 @@
     <div id="loading" class="loading">Načítavam nasadenia...</div>
     <div id="error" class="error" style="display: none;"></div>
 
-    <table class="dashboard-table" id="dashboardTable" style="display: none;">
-      <thead>
-        <tr>
-          <th>Repozitár</th>
-          <th>Prostredie</th>
-          <th>Nasadený tag</th>
-          <th>Čas nasadenia</th>
-          <th>Stav</th>
-        </tr>
-      </thead>
-      <tbody id="tableBody">
-      </tbody>
-    </table>
+    <div id="tablesContainer" style="display: none;"></div>
   </div>
 
   <script>
@@ -55,7 +43,7 @@
 
     function showError(msg) {
       document.getElementById("loading").style.display = "none";
-      document.getElementById("dashboardTable").style.display = "none";
+      document.getElementById("tablesContainer").style.display = "none";
       const err = document.getElementById("error");
       err.textContent = msg;
       err.style.display = "block";
@@ -123,35 +111,72 @@
         if (rows.length === 0) {
           document.getElementById("loading").textContent = "Žiadne nasadenia.";
           document.getElementById("loading").style.display = "block";
-          document.getElementById("dashboardTable").style.display = "none";
+          document.getElementById("tablesContainer").style.display = "none";
           return;
         }
 
-        rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        const byEnv = {};
+        rows.forEach((row) => {
+          const env = row.environment || "—";
+          if (!byEnv[env]) byEnv[env] = [];
+          byEnv[env].push(row);
+        });
+
+        Object.keys(byEnv).forEach((env) => {
+          byEnv[env].sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        });
 
         document.getElementById("loading").style.display = "none";
-        document.getElementById("dashboardTable").style.display = "table";
+        const container = document.getElementById("tablesContainer");
+        container.style.display = "block";
+        container.innerHTML = "";
 
-        const tbody = document.getElementById("tableBody");
-        tbody.innerHTML = "";
+        Object.keys(byEnv)
+          .sort()
+          .forEach((env) => {
+            const envRows = byEnv[env];
 
-        rows.forEach((row) => {
-          const tr = document.createElement("tr");
-          const env = row.environment || "—";
-          const state = row.state === "—" ? "—" : row.state;
-          const statusClass =
-            state === "—" ? "status--loading" : getStatusClass(state);
+            const heading = document.createElement("h2");
+            heading.className = "dashboard-section-title";
+            heading.textContent = env;
+            container.appendChild(heading);
 
-          const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
-          tr.innerHTML = `
-            <td><a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a></td>
-            <td>${env}</td>
-            <td>${row.ref || "—"}</td>
-            <td>${formatDate(row.created_at)}</td>
-            <td><span class="status ${statusClass}">${state}</span></td>
-          `;
-          tbody.appendChild(tr);
-        });
+            const table = document.createElement("table");
+            table.className = "dashboard-table";
+            table.innerHTML = `
+              <thead>
+                <tr>
+                  <th>Prostredie</th>
+                  <th>Repozitár</th>
+                  <th>Nasadený tag</th>
+                  <th>Čas nasadenia</th>
+                  <th>Stav</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            `;
+
+            const tbody = table.querySelector("tbody");
+            envRows.forEach((row) => {
+              const tr = document.createElement("tr");
+              const envLabel = row.environment || "—";
+              const state = row.state === "—" ? "—" : row.state;
+              const statusClass =
+                state === "—" ? "status--loading" : getStatusClass(state);
+
+              const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
+              tr.innerHTML = `
+                <td>${envLabel}</td>
+                <td><a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a></td>
+                <td>${row.ref || "—"}</td>
+                <td>${formatDate(row.created_at)}</td>
+                <td><span class="status ${statusClass}">${state}</span></td>
+              `;
+              tbody.appendChild(tr);
+            });
+
+            container.appendChild(table);
+          });
       })
       .catch((err) => showError("Chyba pri načítavaní: " + err.message));
   </script>
