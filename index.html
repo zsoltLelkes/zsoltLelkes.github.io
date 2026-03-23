@@ -17,8 +17,8 @@
   </div>
 
   <script>
-    /** Max. počet nasadení načítaných z API na repozitár (po rozbalení ich uvidíš všetky až po tento limit). */
-    const MAX_DEPLOYMENTS_FETCHED_PER_REPO = 50;
+    /** Max. počet nasadení načítaných z API na jeden repozitár (GitHub vracia stránkovanie – berieme len prvých N). */
+    const MAX_DEPLOYMENTS_PER_REPO = 5;
 
     function getStatusClass(state) {
       const map = {
@@ -61,14 +61,15 @@
 
     function fetchRepoDeployments(owner, repo) {
       return fetch(
-        `https://api.github.com/repos/${owner}/${repo}/deployments`
+        `https://api.github.com/repos/${owner}/${repo}/deployments?per_page=${MAX_DEPLOYMENTS_PER_REPO}`
       )
         .then((res) => {
           if (!res.ok) throw new Error(`${owner}/${repo}: HTTP ${res.status}`);
           return res.json();
         })
         .then((deployments) => {
-          const limited = deployments.slice(0, MAX_DEPLOYMENTS_FETCHED_PER_REPO);
+          const list = Array.isArray(deployments) ? deployments : [];
+          const limited = list.slice(0, MAX_DEPLOYMENTS_PER_REPO);
           return Promise.all(
             limited.map((d) =>
               fetchDeploymentStatus(owner, repo, d.id).then((state) => ({
@@ -147,48 +148,54 @@
                   <th>Nasadený tag</th>
                   <th>Čas nasadenia</th>
                   <th>Stav</th>
+                  <th class="col-expand" scope="col"><span class="visually-hidden">Ďalšie</span></th>
                 </tr>
               </thead>
               <tbody></tbody>
             `;
 
             const tbody = table.querySelector("tbody");
+            const hasMore = envRows.length > 1;
+
             envRows.forEach((row, rowIndex) => {
               const tr = document.createElement("tr");
               tr.className =
                 "deployment-row " +
                 (rowIndex > 0 ? "deployment-row--extra " : "") +
                 (rowIndex % 2 === 0 ? "row--stripe-a" : "row--stripe-b");
+              if (rowIndex > 0) {
+                tr.style.display = "none";
+                tr.setAttribute("hidden", "");
+              }
               const envLabel = row.environment || "—";
               const state = row.state === "—" ? "—" : row.state;
               const statusClass =
                 state === "—" ? "status--loading" : getStatusClass(state);
 
               const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
+              const expandCell =
+                rowIndex === 0 && hasMore
+                  ? `<td class="expand-cell">
+                  <button type="button" class="expand-toggle" aria-expanded="false" aria-label="Zobraziť ďalšie nasadenia">
+                    <span class="expand-toggle__icon" aria-hidden="true">▼</span>
+                  </button>
+                </td>`
+                  : `<td class="expand-cell"></td>`;
+
               tr.innerHTML = `
                 <td>${envLabel}</td>
                 <td><a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a></td>
                 <td>${row.ref || "—"}</td>
                 <td>${formatDate(row.created_at)}</td>
                 <td><span class="status ${statusClass}">${state}</span></td>
+                ${expandCell}
               `;
               tbody.appendChild(tr);
             });
 
-            if (envRows.length > 1) {
-              const trExpand = document.createElement("tr");
-              trExpand.className = "expand-row";
-              trExpand.innerHTML = `
-                <td colspan="4" class="expand-row__spacer"></td>
-                <td class="expand-cell">
-                  <button type="button" class="expand-toggle" aria-expanded="false" aria-label="Zobraziť ďalšie nasadenia">
-                    <span class="expand-toggle__icon" aria-hidden="true">▼</span>
-                  </button>
-                </td>
-              `;
-              tbody.appendChild(trExpand);
-
-              const btn = trExpand.querySelector(".expand-toggle");
+            if (hasMore) {
+              const btn = tbody.querySelector(".expand-toggle");
+              const icon = btn.querySelector(".expand-toggle__icon");
               btn.addEventListener("click", () => {
                 const expanded = table.classList.toggle("is-expanded");
                 btn.setAttribute("aria-expanded", expanded ? "true" : "false");
@@ -196,9 +203,16 @@
                   "aria-label",
                   expanded ? "Skryť ďalšie nasadenia" : "Zobraziť ďalšie nasadenia"
                 );
-                trExpand.querySelector(".expand-toggle__icon").textContent = expanded
-                  ? "▲"
-                  : "▼";
+                icon.textContent = expanded ? "▲" : "▼";
+                tbody.querySelectorAll(".deployment-row--extra").forEach((trEl) => {
+                  if (expanded) {
+                    trEl.style.display = "";
+                    trEl.removeAttribute("hidden");
+                  } else {
+                    trEl.style.display = "none";
+                    trEl.setAttribute("hidden", "");
+                  }
+                });
               });
             }
 
