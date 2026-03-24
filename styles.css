@@ -189,6 +189,12 @@ body {
   border-radius: 4px;
 }
 
+.filter-bar__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 0.5rem;
+}
+
 .dashboard-filter {
   margin-bottom: 1.5rem;
 }
@@ -226,20 +232,7 @@ body {
   box-shadow: 0 0 0 2px rgba(36, 81, 121, 0.2);
 }
 
-.filter-cell--actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.filter-cell--actions .filter-input {
-  flex: 1 1 6rem;
-  min-width: 4rem;
-}
-
 .filter-clear {
-  flex: 0 0 auto;
   cursor: pointer;
   padding: 0.45rem 0.75rem;
   font: inherit;
@@ -261,12 +254,11 @@ body {
 }
 
 @media (max-width: 768px) {
-  .filter-cell--actions {
-    flex-direction: column;
-    align-items: stretch;
+  .filter-bar__toolbar {
+    justify-content: stretch;
   }
 
-  .filter-clear {
+  .filter-bar__toolbar .filter-clear {
     width: 100%;
   }
 

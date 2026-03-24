@@ -68,6 +68,9 @@
       wrap.innerHTML = `
         ${hint}
         <p class="filter-empty" id="filterEmptyMessage" hidden>Žiadny riadok nevyhovuje zadaným filtrom.</p>
+        <div class="filter-bar__toolbar">
+          <button type="button" class="filter-clear" title="Vymazať všetky filtre">Vyčistiť filter</button>
+        </div>
         <table class="dashboard-table dashboard-filter">
           <thead>
             <tr>
@@ -84,10 +87,7 @@
               <td><input type="text" class="filter-input" data-filter-col="1" placeholder="Hľadať…" autocomplete="off" spellcheck="false" inputmode="search" aria-label="Filter: repozitár" /></td>
               <td><input type="text" class="filter-input" data-filter-col="2" placeholder="Hľadať…" autocomplete="off" spellcheck="false" inputmode="search" aria-label="Filter: tag" /></td>
               <td><input type="text" class="filter-input" data-filter-col="3" placeholder="Hľadať…" autocomplete="off" spellcheck="false" inputmode="search" aria-label="Filter: čas" /></td>
-              <td class="filter-cell--actions">
-                <input type="text" class="filter-input" data-filter-col="4" placeholder="Stav…" autocomplete="off" spellcheck="false" inputmode="search" aria-label="Filter: stav" />
-                <button type="button" class="filter-clear" title="Vymazať všetky filtre">Vyčistiť</button>
-              </td>
+              <td><input type="text" class="filter-input" data-filter-col="4" placeholder="Stav…" autocomplete="off" spellcheck="false" inputmode="search" aria-label="Filter: stav" /></td>
             </tr>
           </tbody>
         </table>
