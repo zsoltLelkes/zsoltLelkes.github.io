@@ -165,6 +165,20 @@ body {
   margin-bottom: 1.25rem;
 }
 
+.filter-bar__hint {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.875rem;
+  color: #5a6c7d;
+  line-height: 1.45;
+}
+
+.filter-bar__hint code {
+  font-size: 0.8em;
+  padding: 0.1rem 0.35rem;
+  background: #eef2f6;
+  border-radius: 3px;
+}
+
 .filter-empty {
   margin: 0 0 0.75rem 0;
   padding: 0.65rem 0.75rem;
