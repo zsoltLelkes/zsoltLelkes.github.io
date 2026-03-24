@@ -193,7 +193,10 @@ body {
   margin-bottom: 1.5rem;
 }
 
+/* Povoliť obsah presahovať – inak overflow:hidden z .dashboard-table td láme vstupy + flex v Chrome/Edge (biely blok) */
 .dashboard-filter tbody td {
+  overflow: visible;
+  text-overflow: clip;
   white-space: normal;
   vertical-align: middle;
   background: #f8fafc;
