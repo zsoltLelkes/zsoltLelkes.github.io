@@ -212,6 +212,9 @@ body {
   border: 1px solid #c5d0db;
   border-radius: 4px;
   background: #fff;
+  /* type="search" pridáva v Chrome/Edge natívne tlačidlá, ktoré v tabuľke kazia layout – používame type="text" + nižšie */
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .filter-input:focus {

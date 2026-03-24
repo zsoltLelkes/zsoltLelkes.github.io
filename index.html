@@ -63,8 +63,8 @@
       const wrap = document.createElement("div");
       wrap.className = "filter-bar";
       const hint = generatedAtLabel
-        ? `<p class="filter-bar__hint">Údaje z <code>deployment-data.json</code> (aktualizované workflow). Posledná synchronizácia: <strong>${generatedAtLabel}</strong>. Filtre len v prehliadači.</p>`
-        : `<p class="filter-bar__hint">Údaje z <code>deployment-data.json</code> (aktualizované GitHub Actions). Filtre len v prehliadači.</p>`;
+        ? `<p class="filter-bar__hint">Údaje z <code>deployment-data.json</code> (aktualizované workflow). Posledná synchronizácia: <strong>${generatedAtLabel}</strong>.</p>`
+        : `<p class="filter-bar__hint">Údaje z <code>deployment-data.json</code> (aktualizované GitHub Actions).</p>`;
       wrap.innerHTML = `
         ${hint}
         <p class="filter-empty" id="filterEmptyMessage" hidden>Žiadny riadok nevyhovuje zadaným filtrom.</p>
@@ -80,12 +80,12 @@
           </thead>
           <tbody>
             <tr>
-              <td><input type="search" class="filter-input" data-filter-col="0" placeholder="Hľadať…" autocomplete="off" spellcheck="false" aria-label="Filter: prostredie" /></td>
-              <td><input type="search" class="filter-input" data-filter-col="1" placeholder="Hľadať…" autocomplete="off" spellcheck="false" aria-label="Filter: repozitár" /></td>
-              <td><input type="search" class="filter-input" data-filter-col="2" placeholder="Hľadať…" autocomplete="off" spellcheck="false" aria-label="Filter: tag" /></td>
-              <td><input type="search" class="filter-input" data-filter-col="3" placeholder="Hľadať…" autocomplete="off" spellcheck="false" aria-label="Filter: čas" /></td>
+              <td><input type="text" class="filter-input" data-filter-col="0" placeholder="Hľadať…" autocomplete="off" spellcheck="false" inputmode="search" aria-label="Filter: prostredie" /></td>
+              <td><input type="text" class="filter-input" data-filter-col="1" placeholder="Hľadať…" autocomplete="off" spellcheck="false" inputmode="search" aria-label="Filter: repozitár" /></td>
+              <td><input type="text" class="filter-input" data-filter-col="2" placeholder="Hľadať…" autocomplete="off" spellcheck="false" inputmode="search" aria-label="Filter: tag" /></td>
+              <td><input type="text" class="filter-input" data-filter-col="3" placeholder="Hľadať…" autocomplete="off" spellcheck="false" inputmode="search" aria-label="Filter: čas" /></td>
               <td class="filter-cell--actions">
-                <input type="search" class="filter-input" data-filter-col="4" placeholder="Stav…" autocomplete="off" spellcheck="false" aria-label="Filter: stav" />
+                <input type="text" class="filter-input" data-filter-col="4" placeholder="Stav…" autocomplete="off" spellcheck="false" inputmode="search" aria-label="Filter: stav" />
                 <button type="button" class="filter-clear" title="Vymazať všetky filtre">Vyčistiť</button>
               </td>
             </tr>
@@ -132,7 +132,6 @@
 
       bar.querySelectorAll(".filter-input").forEach((input) => {
         input.addEventListener("input", applyClientFilters);
-        input.addEventListener("search", applyClientFilters);
       });
 
       const clearBtn = bar.querySelector(".filter-clear");

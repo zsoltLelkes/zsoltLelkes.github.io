@@ -9,7 +9,7 @@ import { dirname, join } from "node:path";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, "..");
 
-const DISCOVER_DEPLOYMENTS_PAGE_SIZE = 10;
+const DISCOVER_DEPLOYMENTS_PAGE_SIZE = 100;
 
 function deploymentEnvironmentKey(d) {
   return d.environment && String(d.environment).trim() !== ""
