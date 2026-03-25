@@ -59,14 +59,23 @@
       err.style.display = "block";
     }
 
-    function buildFilterBar(generatedAtLabel) {
+    function buildDataHint(generatedAtLabel) {
+      const p = document.createElement("p");
+      p.className = "filter-bar__hint dashboard-hint";
+      if (generatedAtLabel) {
+        p.innerHTML =
+          `Údaje z <code>deployment-data.json</code> (aktualizované workflow). Posledná synchronizácia: <strong>${generatedAtLabel}</strong>.`;
+      } else {
+        p.innerHTML =
+          `Údaje z <code>deployment-data.json</code> (aktualizované GitHub Actions).`;
+      }
+      return p;
+    }
+
+    function buildFilterBar() {
       const wrap = document.createElement("div");
       wrap.className = "filter-bar";
-      const hint = generatedAtLabel
-        ? `<p class="filter-bar__hint">Údaje z <code>deployment-data.json</code> (aktualizované workflow). Posledná synchronizácia: <strong>${generatedAtLabel}</strong>.</p>`
-        : `<p class="filter-bar__hint">Údaje z <code>deployment-data.json</code> (aktualizované GitHub Actions).</p>`;
       wrap.innerHTML = `
-        ${hint}
         <p class="filter-empty" id="filterEmptyMessage" hidden>Žiadny riadok nevyhovuje zadaným filtrom.</p>
         <div class="filter-bar__toolbar">
           <button type="button" class="filter-clear" title="Vymazať všetky filtre">Vyčistiť filter</button>
@@ -240,7 +249,7 @@
       return section;
     }
 
-    function renderByEnvironmentSection(rows, generatedAt) {
+    function renderByEnvironmentSection(rows) {
       const section = document.createElement("section");
       section.className = "dashboard-section dashboard-section--secondary";
       section.setAttribute("aria-labelledby", "section-by-env-title");
@@ -251,7 +260,7 @@
       title.textContent = "Podľa prostredia";
       section.appendChild(title);
 
-      const filterBar = buildFilterBar(generatedAt);
+      const filterBar = buildFilterBar();
       section.appendChild(filterBar);
 
       const byEnv = {};
@@ -319,8 +328,9 @@
       container.style.display = "block";
       container.innerHTML = "";
 
+      container.appendChild(buildDataHint(generatedAt));
       container.appendChild(renderByRepositorySection(rows));
-      container.appendChild(renderByEnvironmentSection(rows, generatedAt));
+      container.appendChild(renderByEnvironmentSection(rows));
 
       setupClientFilters();
     }
