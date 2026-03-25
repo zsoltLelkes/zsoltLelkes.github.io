@@ -148,19 +148,111 @@
       applyClientFilters();
     }
 
-    function renderDashboard(payload) {
-      const rows = Array.isArray(payload.rows) ? payload.rows : [];
-      const generatedAt = payload.generatedAt
-        ? formatGeneratedAt(payload.generatedAt)
-        : "";
-
-      if (rows.length === 0) {
-        document.getElementById("loading").textContent =
-          "Žiadne nasadenia v deployment-data.json. Spusti workflow „Sync deployment data“ alebo počkaj na plánovaný beh.";
-        document.getElementById("loading").style.display = "block";
-        document.getElementById("tablesContainer").style.display = "none";
-        return;
+    /**
+     * @param {"repo-first"|"env-first"} order
+     */
+    function buildTableRowHtml(row, order) {
+      const envLabel = row.environment || "—";
+      const state = row.state === "—" ? "—" : row.state;
+      const statusClass =
+        state === "—" ? "status--loading" : getStatusClass(state);
+      const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
+      const repoCell = `<a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a>`;
+      const mid = `
+                <td>${row.ref || "—"}</td>
+                <td>${formatDate(row.created_at)}</td>
+                <td><span class="status ${statusClass}">${state}</span></td>`;
+      if (order === "repo-first") {
+        return `
+                <td>${repoCell}</td>
+                <td>${envLabel}</td>${mid}`;
       }
+      return `
+                <td>${envLabel}</td>
+                <td>${repoCell}</td>${mid}`;
+    }
+
+    function renderByRepositorySection(rows) {
+      const section = document.createElement("section");
+      section.className = "dashboard-section";
+      section.setAttribute("aria-labelledby", "section-by-repo-title");
+
+      const title = document.createElement("h2");
+      title.id = "section-by-repo-title";
+      title.className = "dashboard-section__title";
+      title.textContent = "Podľa repozitára";
+      section.appendChild(title);
+
+      const byRepo = {};
+      rows.forEach((row) => {
+        const key = `${row.owner}/${row.repo}`;
+        if (!byRepo[key]) byRepo[key] = [];
+        byRepo[key].push(row);
+      });
+
+      Object.keys(byRepo).forEach((key) => {
+        byRepo[key].sort((a, b) =>
+          String(a.environment || "").localeCompare(
+            String(b.environment || ""),
+            "sk"
+          )
+        );
+      });
+
+      const sortedKeys = Object.keys(byRepo).sort((a, b) =>
+        a.localeCompare(b, "sk")
+      );
+
+      sortedKeys.forEach((key) => {
+        const repoRows = byRepo[key];
+        const first = repoRows[0];
+        const heading = document.createElement("h3");
+        heading.className = "dashboard-repo-heading";
+        const repoUrl = `https://github.com/${first.owner}/${first.repo}`;
+        heading.innerHTML = `<a href="${repoUrl}" target="_blank" rel="noopener">${first.repo}</a>`;
+
+        const table = document.createElement("table");
+        table.className = "dashboard-table dashboard-repo-table";
+        table.innerHTML = `
+              <thead>
+                <tr>
+                  <th>Repozitár</th>
+                  <th>Prostredie</th>
+                  <th>Nasadený tag</th>
+                  <th>Čas nasadenia</th>
+                  <th>Stav</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            `;
+
+        const tbody = table.querySelector("tbody");
+        repoRows.forEach((row) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = buildTableRowHtml(row, "repo-first");
+          tbody.appendChild(tr);
+        });
+
+        section.appendChild(heading);
+        section.appendChild(table);
+      });
+
+      return section;
+    }
+
+    function renderByEnvironmentSection(rows, generatedAt) {
+      const section = document.createElement("section");
+      section.className = "dashboard-section dashboard-section--secondary";
+      section.setAttribute("aria-labelledby", "section-by-env-title");
+
+      const title = document.createElement("h2");
+      title.id = "section-by-env-title";
+      title.className = "dashboard-section__title";
+      title.textContent = "Podľa prostredia";
+      section.appendChild(title);
+
+      const filterBar = buildFilterBar(generatedAt);
+      section.appendChild(filterBar);
 
       const byEnv = {};
       rows.forEach((row) => {
@@ -174,14 +266,6 @@
           String(a.repo).localeCompare(String(b.repo), "sk")
         );
       });
-
-      document.getElementById("loading").style.display = "none";
-      const container = document.getElementById("tablesContainer");
-      container.style.display = "block";
-      container.innerHTML = "";
-
-      const filterBar = buildFilterBar(generatedAt);
-      container.appendChild(filterBar);
 
       Object.keys(byEnv)
         .sort()
@@ -206,24 +290,37 @@
           const tbody = table.querySelector("tbody");
           envRows.forEach((row) => {
             const tr = document.createElement("tr");
-            const envLabel = row.environment || "—";
-            const state = row.state === "—" ? "—" : row.state;
-            const statusClass =
-              state === "—" ? "status--loading" : getStatusClass(state);
-
-            const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
-            tr.innerHTML = `
-                <td>${envLabel}</td>
-                <td><a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a></td>
-                <td>${row.ref || "—"}</td>
-                <td>${formatDate(row.created_at)}</td>
-                <td><span class="status ${statusClass}">${state}</span></td>
-              `;
+            tr.innerHTML = buildTableRowHtml(row, "env-first");
             tbody.appendChild(tr);
           });
 
-          container.appendChild(table);
+          section.appendChild(table);
         });
+
+      return section;
+    }
+
+    function renderDashboard(payload) {
+      const rows = Array.isArray(payload.rows) ? payload.rows : [];
+      const generatedAt = payload.generatedAt
+        ? formatGeneratedAt(payload.generatedAt)
+        : "";
+
+      if (rows.length === 0) {
+        document.getElementById("loading").textContent =
+          "Žiadne nasadenia v deployment-data.json. Spusti workflow „Sync deployment data“ alebo počkaj na plánovaný beh.";
+        document.getElementById("loading").style.display = "block";
+        document.getElementById("tablesContainer").style.display = "none";
+        return;
+      }
+
+      document.getElementById("loading").style.display = "none";
+      const container = document.getElementById("tablesContainer");
+      container.style.display = "block";
+      container.innerHTML = "";
+
+      container.appendChild(renderByRepositorySection(rows));
+      container.appendChild(renderByEnvironmentSection(rows, generatedAt));
 
       setupClientFilters();
     }

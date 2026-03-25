@@ -25,6 +25,64 @@ body {
   color: #245179;
 }
 
+/* Dve hlavné oblasti: podľa repozitára (hore) / podľa prostredia (dole + filter) */
+.dashboard-section {
+  margin-bottom: 2rem;
+}
+
+.dashboard-section--secondary {
+  margin-top: 2.5rem;
+  padding-top: 2rem;
+  border-top: 2px solid #c5d0db;
+}
+
+.dashboard-section__title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 1rem 0;
+  color: #1e4262;
+}
+
+.dashboard-repo-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem 0;
+  color: #245179;
+}
+
+.dashboard-repo-heading:first-of-type {
+  margin-top: 0;
+}
+
+.dashboard-repo-heading a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.dashboard-repo-heading a:hover {
+  text-decoration: underline;
+}
+
+.dashboard-repo-table {
+  margin-bottom: 1.5rem;
+}
+
+.dashboard-repo-table:last-child {
+  margin-bottom: 0;
+}
+
+.dashboard-repo-table tbody tr:nth-child(even) {
+  background: #f8fafc;
+}
+
+.dashboard-repo-table tbody tr:nth-child(odd) {
+  background: #fff;
+}
+
+.dashboard-repo-table tbody tr:hover {
+  background: #eef4fa;
+}
+
 .dashboard-table {
   width: 100%;
   table-layout: fixed;
