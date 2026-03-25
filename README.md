@@ -1,74 +1,90 @@
 # Deployment Dashboard (GitHub Pages)
 
-**Vanilla JS** dashboard (`index.html`) zobrazuje nasadenia z lokálneho súboru **`deployment-data.json`**. Tento súbor **generuje GitHub Actions** podľa `config.json` – volania **GitHub API** nebežia v prehliadači (vhodné pre súkromné repozitáre: token v **Secrets**, nie v kóde).
+**Vanilla JS** dashboard (`index.html`) zobrazuje nasadenia zo súboru **`deployment-data.json`**. Tento súbor **generuje GitHub Actions** podľa **`config.json`** – volania **GitHub API** nebežia v prehliadači (token ostáva v **Actions secrets**, nie v kóde).
 
 ---
 
 ## Ako to funguje
 
-1. **`config.json`** – `organization` + `repositories` (čo sledovať).
-2. **Workflow** `.github/workflows/sync-deployment-data.yml` – každých **15 minút** (a ručne cez *Actions → Sync deployment data → Run workflow*) spustí `scripts/sync-deployments.mjs`.
-3. Skript použije token z prostredia a zapíše **`deployment-data.json`** (commit + push, správa obsahuje `[skip ci]` aby sa zbytočne nespúšťali ostatné workflow).
-4. **`index.html`** načíta len `deployment-data.json` a vykreslí tabuľky + klientsky filter.
+1. **`config.json`** – `organization` + pole `repositories` (ktoré repozitáre sledovať).
+2. **Workflow** `.github/workflows/sync-deployment-data.yml` – podľa **cronu každých 15 minút** a ručne cez *Actions → Sync deployment data → Run workflow* spustí `node scripts/sync-deployments.mjs`.
+3. Skript načíta token z prostredia a zapíše **`deployment-data.json`** do koreňa repozitára; ďalší krok urobí **commit + push** (správa obsahuje `[skip ci]`, aby sa nespúšťali zbytočné workflow).
+4. **`index.html`** cez `fetch("deployment-data.json")` vykreslí tabuľky a klientske filtre.
+
+**Poznámka:** Plánovaný beh (**cron**) na GitHub beží len z **predvolenej vetvy** repozitára; workflow súbor musí byť na tejto vetve.
 
 ---
 
-## Secrets (repo Settings → Secrets and variables → Actions)
+## Secrets (Settings → Secrets and variables → Actions)
+
+Ukladaj ako **Repository secrets** (nie Variables) – hodnoty sú maskované v logoch.
 
 | Secret | Kedy |
 |--------|------|
-| *(žiadny extra)* | Ak máš v `config.json` **len tento istý** repozitár ako dashboard, stačí vstavaný **`GITHUB_TOKEN`** z workflow. |
-| **`DEPLOYMENTS_SYNC_TOKEN`** | **Odporúčané**, ak sleduješ **viac repozitárov** v org (alebo cudzie repá): vytvor **Personal Access Token** (classic) s `repo` (čítanie) a ulož ho ako tento secret. Skript použije ho namiesto `GITHUB_TOKEN`, ak je nastavený. |
+| *(žiadny extra)* | Ak v `config.json` sleduješ **iba repozitár, v ktorom tento workflow beží**, často stačí vstavaný **`GITHUB_TOKEN`**. |
+| **`DEPLOYMENTS_SYNC_TOKEN`** | **Potrebné** pri sledovaní **iných** repozitárov (aj v tej istej org): default **`GITHUB_TOKEN`** na ne nemá právo → API vráti **403** („Resource not accessible by integration“). Vytvor **PAT** na svojom účte (ten musí mať aspoň read na tie repá) a ulož ho ako tento secret. Skript použije `DEPLOYMENTS_SYNC_TOKEN`, ak je nastavený, inak `GITHUB_TOKEN`. |
 
-Pre **súkromné** repozitáre musí mať token používateľ/service prístup na všetky uvedené repozitáre.
+**PAT (odporúčané minimum):** *Fine-grained* token – Resource owner = org alebo účet, vybrané repozitáre, oprávnenie **Deployments: Read-only** (prípadne classic PAT so scope **`repo`**, ak potrebuješ širší prístup). Pri org s **SSO** token po vytvorení **autorizuj** pre danú organizáciu.
+
+Pre **súkromné** repozitáre musí mať účet, pod ktorým PAT vytváraš, prístup na všetky uvedené repá; token nepridá oprávnenia nad rámec účtu.
 
 ---
 
-## Súbory
+## Súbory (aktuálna štruktúra – koreň repozitára)
 
 ```
-├── index.html              # Dashboard (číta deployment-data.json)
-├── deployment-data.json    # Generované Actions; po prvom push môže byť prázdne
-├── config.json             # Ktoré repozitáre sledovať
+├── index.html
 ├── styles.css
+├── config.json                    # Číta sync skript
+├── deployment-data.json           # Generuje Actions; prvý push môže byť prázdny / 0 riadkov
 ├── scripts/
 │   └── sync-deployments.mjs
 └── .github/workflows/
-    ├── sync-deployment-data.yml
-    ├── deploy-staging.yml      # voliteľné
-    └── deploy-development.yml
+    ├── sync-deployment-data.yml   # synchronizácia deployment-data.json
+    ├── deploy-staging.yml         # príklad: environment staging (simulovaný deploy)
+    └── deploy-development.yml     # príklad: environment development (simulovaný deploy)
 ```
+
+---
+
+## Všetko v priečinku mimo root
+
+Ak máš stránku a dáta mimo root (napr. GitHub Pages z `/docs`):
+
+- V **workflow** zmeň:
+  - `run: node *cesta*/scripts/sync-deployments.mjs` (alebo iná cesta k `.mjs`),
+  - `git add *cesta*/deployment-data.json` namiesto `git add deployment-data.json`.
 
 ---
 
 ## Lokálne spustenie skriptu (voliteľné)
 
+Z koreňa repozitára (alebo uprav cesty podľa umiestnenia skriptu):
+
 ```bash
-export GITHUB_TOKEN=ghp_xxx   # alebo PAT s prístupom k repozitárom
+# Windows (PowerShell): $env:GITHUB_TOKEN="ghp_..." alebo $env:DEPLOYMENTS_SYNC_TOKEN="..."
+export GITHUB_TOKEN=ghp_xxx          # alebo DEPLOYMENTS_SYNC_TOKEN pre viac repozitárov
 node scripts/sync-deployments.mjs
 ```
 
 ---
 
-## GitHub Pages – limity buildov
+## GitHub Pages
 
-Pri publikovaní cez **vlastný** Actions workflow sa **soft limit ~10 buildov/h** nevzťahuje rovnako ako pri starom „len branch“ modeli. Synchronizácia každých **15 minút** je rozumná frekvencia; pozor na **minúty Actions** podľa plánu účtu.
-
----
-
-## Presun do inej organizácie
-
-- Uprav **`config.json`**, pushni.
-- Nastav **Secrets** podľa potreby.
-- Zapni **Actions** a **Pages** (zdroj z vetvy s `index.html`, zvyčajne root `/`).
-- Spusti workflow **Sync deployment data** ručne prvýkrát, alebo počkaj na cron.
+V **Settings → Pages** nastav zdroj (vetva a priečinok **/** alebo **/docs**) tak, aby root stránky obsahoval `index.html` a aby `deployment-data.json` bol na **tej istej úrovni relatívnych ciest** ako v `fetch()` v `index.html`.
 
 ---
 
-## TODO – rozbehnutie
+## Ďalšie workflow súbory
 
-- [ ] Upraviť `config.json` (organization + repositories).
-- [ ] Pre viac repozitárov pridať **DEPLOYMENTS_SYNC_TOKEN** (PAT).
-- [ ] Zapnúť GitHub Pages a Actions.
-- [ ] Spustiť workflow *Sync deployment data* a overiť commit `deployment-data.json`.
+`deploy-staging.yml` a `deploy-development.yml` sú v tomto repozitári **ukážkové** (simulácia deployu cez environments). Na samotný dashboard a sync **nie sú nutné** – môžeš ich zmazať alebo nahradiť vlastnými pipeline.
+
+---
+
+## Checklist rozbehnutia
+
+- [ ] Upraviť **`config.json`** (`organization`, `repositories`).
+- [ ] Ak sleduješ **viac repozitárov** (alebo súkromné repá mimo „aktuálneho“): pridať **repository secret** **`DEPLOYMENTS_SYNC_TOKEN`** (PAT s prístupom k deployments).
+- [ ] Zapnúť **Actions** a **Pages**; workflow so **schedule** musí byť na **default vetve**.
+- [ ] Spustiť workflow *Sync deployment data* ručne alebo počkať na cron; overiť commit `deployment-data.json`.
 - [ ] Otvoriť stránku a overiť dashboard.
