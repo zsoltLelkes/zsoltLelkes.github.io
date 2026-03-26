@@ -8,7 +8,8 @@
       "environment": "github-pages",
       "ref": "main",
       "created_at": "2026-03-26T08:27:05Z",
-      "state": "success"
+      "state": "failure",
+      "last_success_at": "2026-03-20T10:00:00Z"
     },
     {
       "owner": "zsoltLelkes",
@@ -16,7 +17,7 @@
       "environment": "development",
       "ref": "main",
       "created_at": "2026-03-26T08:26:45Z",
-      "state": "success"
+      "state": "error"
     },
     {
       "owner": "zsoltLelkes",
