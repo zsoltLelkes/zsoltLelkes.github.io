@@ -41,8 +41,7 @@ async function githubFetch(url, token) {
   return res.json();
 }
 
-/** Najnovší stav nasadenia + čas tohto stavu (pre úspech = čas úspešného statusu). */
-async function fetchLatestDeploymentStatus(owner, repo, deploymentId, token) {
+async function fetchDeploymentStatusesRaw(owner, repo, deploymentId, token) {
   const url = `https://api.github.com/repos/${owner}/${repo}/deployments/${deploymentId}/statuses`;
   const res = await fetch(url, {
     headers: {
@@ -51,9 +50,24 @@ async function fetchLatestDeploymentStatus(owner, repo, deploymentId, token) {
       "X-GitHub-Api-Version": "2022-11-28"
     }
   });
-  if (!res.ok) return null;
+  if (!res.ok) return [];
   const statuses = await res.json();
-  if (!Array.isArray(statuses) || statuses.length === 0) return null;
+  return Array.isArray(statuses) ? statuses : [];
+}
+
+function statusState(s) {
+  return String(s?.state || "").toLowerCase();
+}
+
+/** Najnovší stav nasadenia + čas tohto stavu (pre úspech = čas úspešného statusu). */
+async function fetchLatestDeploymentStatus(owner, repo, deploymentId, token) {
+  const statuses = await fetchDeploymentStatusesRaw(
+    owner,
+    repo,
+    deploymentId,
+    token
+  );
+  if (statuses.length === 0) return null;
   const sorted = [...statuses].sort(
     (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
   );
@@ -68,6 +82,31 @@ async function fetchLatestDeploymentStatus(owner, repo, deploymentId, token) {
     created_at: latest.created_at || null,
     target_url: targetUrl
   };
+}
+
+/**
+ * Čas najnovšieho statusu „success“ v histórii daného nasadenia (nie len najnovší status).
+ * Pri novšom nasadení GitHub často nastaví starému najnovší stav „inactive“ – samotný úspech
+ * zostáva v histórii statusov.
+ */
+async function fetchNewestSuccessTimeFromDeployment(
+  owner,
+  repo,
+  deploymentId,
+  token
+) {
+  const statuses = await fetchDeploymentStatusesRaw(
+    owner,
+    repo,
+    deploymentId,
+    token
+  );
+  if (statuses.length === 0) return null;
+  const sorted = [...statuses].sort(
+    (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+  );
+  const success = sorted.find((s) => statusState(s) === "success");
+  return success?.created_at || null;
 }
 
 /** Odkaz na workflow run pre commit (ak GitHub Actions v repozitári existujú). */
@@ -98,8 +137,8 @@ async function fetchWorkflowRunUrlForSha(owner, repo, sha, token) {
 }
 
 /**
- * Najnovší čas, kedy existovalo nasadenie s finálnym stavom success (pre dané prostredie).
- * Nasadenia sú od najnovších; prvý nájdený success = posledný úspech v čase.
+ * Posledný čas úspechu v danom prostredí: pre každé nasadenie (od najnovšieho) hľadáme
+ * v histórii statusov záznam „success“ (nie len aktuálny vrchol – ten môže byť inactive).
  */
 async function findLastSuccessAt(owner, repo, envName, token) {
   let page = 1;
@@ -127,9 +166,14 @@ async function findLastSuccessAt(owner, repo, envName, token) {
 
     for (const d of arr) {
       if (envName === "—" && deploymentEnvironmentKey(d) !== "—") continue;
-      const st = await fetchLatestDeploymentStatus(owner, repo, d.id, token);
-      if (st && st.state === "success") {
-        return st.created_at || d.created_at || null;
+      const successAt = await fetchNewestSuccessTimeFromDeployment(
+        owner,
+        repo,
+        d.id,
+        token
+      );
+      if (successAt) {
+        return successAt;
       }
     }
 
