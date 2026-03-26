@@ -172,6 +172,23 @@ body {
   font-weight: 500;
 }
 
+a.status-badge-link {
+  display: inline-block;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 4px;
+  outline-offset: 2px;
+}
+
+a.status-badge-link:hover .status {
+  filter: brightness(0.97);
+  box-shadow: 0 0 0 1px rgba(36, 81, 121, 0.35);
+}
+
+a.status-badge-link:focus-visible {
+  outline: 2px solid #245179;
+}
+
 .status--success {
   background: #d4edda;
   color: #155724;

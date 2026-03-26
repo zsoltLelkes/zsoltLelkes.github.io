@@ -161,15 +161,37 @@
       return String(state || "").toLowerCase() === "success";
     }
 
+    function escapeAttr(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;");
+    }
+
+    /**
+     * Hlavný badge stavu; ak je v riadku run_url (z deployment-data.json), obalí ho odkaz na GitHub Actions run.
+     */
+    function buildPrimaryBadgeHtml(row) {
+      const state = row.state === "—" ? "—" : row.state;
+      const statusClass =
+        state === "—" ? "status--loading" : getStatusClass(state);
+      const inner = `<span class="status ${statusClass}">${state}</span>`;
+      const raw = row.run_url && String(row.run_url).trim();
+      if (!raw) return inner;
+      try {
+        const u = new URL(raw);
+        if (u.protocol !== "http:" && u.protocol !== "https:") return inner;
+        return `<a class="status-badge-link" href="${escapeAttr(u.href)}" target="_blank" rel="noopener noreferrer" title="Otvoriť workflow run na GitHube">${inner}</a>`;
+      } catch {
+        return inner;
+      }
+    }
+
     /**
      * Vnútro bunky „Stav“. Pri stave ≠ success: posledný čas success alebo „doteraz žiadny success“.
      * Polia last_success_at dopĺňa sync skript (deployment-data.json).
      */
     function buildStatusCellInnerHtml(row) {
-      const state = row.state === "—" ? "—" : row.state;
-      const statusClass =
-        state === "—" ? "status--loading" : getStatusClass(state);
-      const badge = `<span class="status ${statusClass}">${state}</span>`;
+      const badge = buildPrimaryBadgeHtml(row);
       if (isSuccessState(row.state)) {
         return badge;
       }

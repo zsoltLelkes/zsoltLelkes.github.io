@@ -59,10 +59,42 @@ async function fetchLatestDeploymentStatus(owner, repo, deploymentId, token) {
   );
   const latest = sorted[0];
   if (!latest || !latest.state) return null;
+  const targetUrl =
+    latest.target_url && String(latest.target_url).trim() !== ""
+      ? String(latest.target_url).trim()
+      : null;
   return {
     state: latest.state,
-    created_at: latest.created_at || null
+    created_at: latest.created_at || null,
+    target_url: targetUrl
   };
+}
+
+/** Odkaz na workflow run pre commit (ak GitHub Actions v repozitári existujú). */
+async function fetchWorkflowRunUrlForSha(owner, repo, sha, token) {
+  if (!sha) return null;
+  const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs?head_sha=${encodeURIComponent(sha)}&per_page=20`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28"
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const runs = Array.isArray(data.workflow_runs) ? data.workflow_runs : [];
+    if (runs.length === 0) return null;
+    const sorted = [...runs].sort(
+      (a, b) =>
+        new Date(b.created_at || 0) - new Date(a.created_at || 0)
+    );
+    const href = sorted[0].html_url;
+    return href && String(href).trim() !== "" ? String(href).trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -155,13 +187,18 @@ async function fetchRepoDeployments(owner, repo, token) {
   const rows = await Promise.all(
     unique.map(async (d) => {
       const st = await fetchLatestDeploymentStatus(owner, repo, d.id, token);
+      let run_url = st?.target_url || null;
+      if (!run_url && d.sha) {
+        run_url = await fetchWorkflowRunUrlForSha(owner, repo, d.sha, token);
+      }
       return {
         owner,
         repo,
         environment: d.environment ?? null,
         ref: d.ref ?? null,
         created_at: d.created_at,
-        state: st?.state || "—"
+        state: st?.state || "—",
+        ...(run_url ? { run_url } : {})
       };
     })
   );

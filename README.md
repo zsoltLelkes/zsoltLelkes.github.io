@@ -8,7 +8,7 @@
 
 1. **`config.json`** – `organization` + pole `repositories` (ktoré repozitáre sledovať).
 2. **Workflow** `.github/workflows/sync-deployment-data.yml` – podľa **cronu každých 15 minút** a ručne cez *Actions → Sync deployment data → Run workflow* spustí `node scripts/sync-deployments.mjs`.
-3. Skript načíta token z prostredia a zapíše **`deployment-data.json`** do koreňa repozitára; ďalší krok urobí **commit + push** (správa obsahuje `[skip ci]`, aby sa nespúšťali zbytočné workflow). V riadkoch, kde aktuálny stav nie je `success`, doplní **`last_success_at`** (ISO čas posledného úspešného nasadenia v danom prostredí) alebo ho vynechá / je `null`, ak úspech ešte nebol.
+3. Skript načíta token z prostredia a zapíše **`deployment-data.json`** do koreňa repozitára; ďalší krok urobí **commit + push** (správa obsahuje `[skip ci]`, aby sa nespúšťali zbytočné workflow). V riadkoch, kde aktuálny stav nie je `success`, doplní **`last_success_at`** (ISO čas posledného úspešného nasadenia v danom prostredí) alebo ho vynechá / je `null`, ak úspech ešte nebol. Voliteľné pole **`run_url`** obsahuje odkaz na príslušný workflow run (z `target_url` deployment statusu alebo z Actions API podľa `head_sha` commitu nasadenia).
 4. **`index.html`** cez `fetch("deployment-data.json")` vykreslí tabuľky a klientske filtre.
 
 **Poznámka:** Plánovaný beh (**cron**) na GitHub beží len z **predvolenej vetvy** repozitára; workflow súbor musí byť na tejto vetve.
