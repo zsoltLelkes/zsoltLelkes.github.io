@@ -200,40 +200,27 @@ async function fetchWorkflowRunUrlForSha(owner, repo, sha, token) {
   }
 }
 
-function jobEnvironmentName(job) {
-  if (!job?.environment) return null;
-  const e = job.environment;
-  if (typeof e === "string") return e.trim() || null;
-  if (typeof e === "object" && e != null && e.name != null) {
-    return String(e.name).trim() || null;
+/**
+ * GitHub REST API pri zozname jobov často nevracia pole `environment` (overené na verejnom API),
+ * preto sa nedá spoľahlivo párovať podľa job.environment.
+ * Spájanie: workflow súbor v `run.path` zvyčajne obsahuje názov prostredia (deploy-staging.yml → staging).
+ */
+function workflowPathMatchesEnvironment(workflowPath, envName) {
+  if (!workflowPath || !envName || envName === "—") return false;
+  const p = workflowPath.toLowerCase();
+  const e = envName.toLowerCase();
+  if (p.includes(e)) return true;
+  if (e === "github-pages" && (p.includes("/pages/") || p.includes("pages-build"))) {
+    return true;
   }
-  return null;
-}
-
-async function fetchJobsForWorkflowRun(owner, repo, runId, token) {
-  const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/jobs?per_page=100`;
-  const res = await fetch(url, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28"
-    }
-  });
-  if (!res.ok) return [];
-  const data = await res.json();
-  return Array.isArray(data.jobs) ? data.jobs : [];
-}
-
-function envNamesMatch(a, b) {
-  return String(a || "").toLowerCase() === String(b || "").toLowerCase();
+  return false;
 }
 
 /**
- * Dynamicky: prejde nedávne workflow behy (najnovšie prvé), pri úspešných načíta joby
- * a hľadá job s rovnakým GitHub Environment ako v Deployments API (environment: v YAML).
- * Nevyžaduje názvy .yml súborov ani konštanty.
+ * Dynamicky: prejde nedávne úspešné behy; prvý, kde cesta workflow obsahuje názov prostredia.
+ * Žiadne extra volania /jobs, žiadny limit 80 „šumu“ (pages, sync) pred staging.
  */
-async function findLastSuccessAtViaRunJobs(owner, repo, envName, token) {
+async function findLastSuccessAtViaWorkflowPath(owner, repo, envName, token) {
   if (!envName || envName === "—") return null;
   const headers = {
     Accept: "application/vnd.github+json",
@@ -241,9 +228,7 @@ async function findLastSuccessAtViaRunJobs(owner, repo, envName, token) {
     "X-GitHub-Api-Version": "2022-11-28"
   };
   let page = 1;
-  const maxPages = 15;
-  let successRunsChecked = 0;
-  const maxSuccessRunsToCheck = 80;
+  const maxPages = 20;
 
   while (page <= maxPages) {
     const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs?per_page=100&page=${page}`;
@@ -260,17 +245,9 @@ async function findLastSuccessAtViaRunJobs(owner, repo, envName, token) {
 
     for (const run of sorted) {
       if (String(run.conclusion || "").toLowerCase() !== "success") continue;
-      successRunsChecked += 1;
-      if (successRunsChecked > maxSuccessRunsToCheck) {
-        return null;
-      }
-
-      const jobs = await fetchJobsForWorkflowRun(owner, repo, run.id, token);
-      for (const job of jobs) {
-        const jobEnv = jobEnvironmentName(job);
-        if (jobEnv && envNamesMatch(jobEnv, envName)) {
-          return run.updated_at || run.created_at || null;
-        }
+      const path = run.path || "";
+      if (workflowPathMatchesEnvironment(path, envName)) {
+        return run.updated_at || run.created_at || null;
       }
     }
 
@@ -282,12 +259,17 @@ async function findLastSuccessAtViaRunJobs(owner, repo, envName, token) {
 
 /**
  * Posledný čas úspechu v danom prostredí:
- * 1) Behové joby s environment (dynamické, podľa repozitára z config.json).
+ * 1) Úspešné behy, kde workflow path zodpovedá názvu prostredia (bez /jobs – API tam často nemá environment).
  * 2) Nasadenia + história deployment statusov + Actions runs podľa sha.
  */
 async function findLastSuccessAt(owner, repo, envName, token) {
-  const viaJobs = await findLastSuccessAtViaRunJobs(owner, repo, envName, token);
-  if (viaJobs) return viaJobs;
+  const viaPath = await findLastSuccessAtViaWorkflowPath(
+    owner,
+    repo,
+    envName,
+    token
+  );
+  if (viaPath) return viaPath;
 
   let page = 1;
   const maxPages = 15;
