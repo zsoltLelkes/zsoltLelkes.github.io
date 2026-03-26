@@ -94,30 +94,30 @@ body {
   margin-bottom: 2rem;
 }
 
-/* Fixné šírky stĺpcov – rovnaké pre všetky tabuľky na stránke */
+/* Fixné šírky stĺpcov – tag + čas zúžené, stav širší (doplnkový text) */
 .dashboard-table th:nth-child(1),
 .dashboard-table td:nth-child(1) {
-  width: 16%;
+  width: 15%;
 }
 
 .dashboard-table th:nth-child(2),
 .dashboard-table td:nth-child(2) {
-  width: 24%;
+  width: 21%;
 }
 
 .dashboard-table th:nth-child(3),
 .dashboard-table td:nth-child(3) {
-  width: 22%;
+  width: 16%;
 }
 
 .dashboard-table th:nth-child(4),
 .dashboard-table td:nth-child(4) {
-  width: 22%;
+  width: 15%;
 }
 
 .dashboard-table th:nth-child(5),
 .dashboard-table td:nth-child(5) {
-  width: 16%;
+  width: 33%;
 }
 
 .dashboard-table th {
@@ -202,6 +202,29 @@ body {
 .status--inactive {
   background: #e9ecef;
   color: #6c757d;
+}
+
+.dashboard-cell--status {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  vertical-align: middle;
+  line-height: 1.4;
+}
+
+.status-meta {
+  display: inline;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: #5a6c7d;
+}
+
+/* Slovo „success“ v doplnkovom texte – rovnaký štýl ako badge, menšie na riadku */
+.status-meta .status--inline {
+  font-size: 0.75rem;
+  padding: 0.1rem 0.35rem;
+  margin: 0 0.06rem;
+  vertical-align: 0.08em;
 }
 
 .loading {

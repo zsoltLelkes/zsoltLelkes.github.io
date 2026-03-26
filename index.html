@@ -157,20 +157,41 @@
       applyClientFilters();
     }
 
+    function isSuccessState(state) {
+      return String(state || "").toLowerCase() === "success";
+    }
+
+    /**
+     * Vnútro bunky „Stav“. Pri stave ≠ success: posledný čas success alebo „doteraz žiadny success“.
+     * Polia last_success_at dopĺňa sync skript (deployment-data.json).
+     */
+    function buildStatusCellInnerHtml(row) {
+      const state = row.state === "—" ? "—" : row.state;
+      const statusClass =
+        state === "—" ? "status--loading" : getStatusClass(state);
+      const badge = `<span class="status ${statusClass}">${state}</span>`;
+      if (isSuccessState(row.state)) {
+        return badge;
+      }
+      const successLbl =
+        '<span class="status status--success status--inline">success</span>';
+      if (row.last_success_at) {
+        return `${badge} <span class="status-meta">(posledný ${successLbl} – ${formatDate(row.last_success_at)})</span>`;
+      }
+      return `${badge} <span class="status-meta">(doteraz žiadny ${successLbl})</span>`;
+    }
+
     /**
      * @param {"repo-first"|"env-first"} order
      */
     function buildTableRowHtml(row, order) {
       const envLabel = row.environment || "—";
-      const state = row.state === "—" ? "—" : row.state;
-      const statusClass =
-        state === "—" ? "status--loading" : getStatusClass(state);
       const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
       const repoCell = `<a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a>`;
       const mid = `
                 <td>${row.ref || "—"}</td>
                 <td>${formatDate(row.created_at)}</td>
-                <td><span class="status ${statusClass}">${state}</span></td>`;
+                <td class="dashboard-cell--status">${buildStatusCellInnerHtml(row)}</td>`;
       if (order === "repo-first") {
         return `
                 <td>${repoCell}</td>

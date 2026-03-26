@@ -41,7 +41,8 @@ async function githubFetch(url, token) {
   return res.json();
 }
 
-async function fetchDeploymentStatus(owner, repo, deploymentId, token) {
+/** Najnovší stav nasadenia + čas tohto stavu (pre úspech = čas úspešného statusu). */
+async function fetchLatestDeploymentStatus(owner, repo, deploymentId, token) {
   const url = `https://api.github.com/repos/${owner}/${repo}/deployments/${deploymentId}/statuses`;
   const res = await fetch(url, {
     headers: {
@@ -57,7 +58,53 @@ async function fetchDeploymentStatus(owner, repo, deploymentId, token) {
     (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
   );
   const latest = sorted[0];
-  return latest && latest.state ? latest.state : null;
+  if (!latest || !latest.state) return null;
+  return {
+    state: latest.state,
+    created_at: latest.created_at || null
+  };
+}
+
+/**
+ * Najnovší čas, kedy existovalo nasadenie s finálnym stavom success (pre dané prostredie).
+ * Nasadenia sú od najnovších; prvý nájdený success = posledný úspech v čase.
+ */
+async function findLastSuccessAt(owner, repo, envName, token) {
+  let page = 1;
+  const maxPages = 15;
+  while (page <= maxPages) {
+    let url;
+    if (envName === "—") {
+      url = `https://api.github.com/repos/${owner}/${repo}/deployments?per_page=100&page=${page}`;
+    } else {
+      const params = new URLSearchParams({
+        environment: envName,
+        per_page: "100",
+        page: String(page)
+      });
+      url = `https://api.github.com/repos/${owner}/${repo}/deployments?${params}`;
+    }
+    let list;
+    try {
+      list = await githubFetch(url);
+    } catch {
+      break;
+    }
+    const arr = Array.isArray(list) ? list : [];
+    if (arr.length === 0) break;
+
+    for (const d of arr) {
+      if (envName === "—" && deploymentEnvironmentKey(d) !== "—") continue;
+      const st = await fetchLatestDeploymentStatus(owner, repo, d.id, token);
+      if (st && st.state === "success") {
+        return st.created_at || d.created_at || null;
+      }
+    }
+
+    if (arr.length < 100) break;
+    page += 1;
+  }
+  return null;
 }
 
 async function fetchRepoDeployments(owner, repo, token) {
@@ -107,14 +154,14 @@ async function fetchRepoDeployments(owner, repo, token) {
 
   const rows = await Promise.all(
     unique.map(async (d) => {
-      const state = await fetchDeploymentStatus(owner, repo, d.id, token);
+      const st = await fetchLatestDeploymentStatus(owner, repo, d.id, token);
       return {
         owner,
         repo,
         environment: d.environment ?? null,
         ref: d.ref ?? null,
         created_at: d.created_at,
-        state: state || "—"
+        state: st?.state || "—"
       };
     })
   );
@@ -153,7 +200,23 @@ function main() {
       const part = await fetchRepoDeployments(organization, repo, token);
       all.push(...part);
     }
-    const rows = dedupeByRepoAndEnvironment(all);
+    const deduped = dedupeByRepoAndEnvironment(all);
+    const rows = [];
+    for (const row of deduped) {
+      if (row.state === "success") {
+        rows.push(row);
+        continue;
+      }
+      const envKey = row.environment || "—";
+      const last_success_at = await findLastSuccessAt(
+        row.owner,
+        row.repo,
+        envKey,
+        token
+      );
+      rows.push({ ...row, last_success_at });
+    }
+
     const out = {
       generatedAt: new Date().toISOString(),
       organization,
