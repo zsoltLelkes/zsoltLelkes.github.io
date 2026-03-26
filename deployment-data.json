@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-26T07:36:12.778Z",
+  "generatedAt": "2026-03-26T08:32:02.290Z",
   "organization": "zsoltLelkes",
   "rows": [
     {
@@ -7,23 +7,25 @@
       "repo": "zsoltLelkes.github.io",
       "environment": "github-pages",
       "ref": "main",
-      "created_at": "2026-03-26T06:03:00Z",
-      "state": "success"
-    },
-    {
-      "owner": "zsoltLelkes",
-      "repo": "zsoltLelkes.github.io",
-      "environment": "development",
-      "ref": "main",
-      "created_at": "2026-03-25T13:43:58Z",
-      "state": "success"
+      "created_at": "2026-03-26T08:31:53Z",
+      "state": "failure",
+      "last_success_at": null
     },
     {
       "owner": "zsoltLelkes",
       "repo": "zsoltLelkes.github.io",
       "environment": "staging",
       "ref": "main",
-      "created_at": "2026-03-25T13:43:58Z",
+      "created_at": "2026-03-26T08:31:32Z",
+      "state": "error",
+      "last_success_at": "2026-03-20T10:00:00Z"
+    },
+    {
+      "owner": "zsoltLelkes",
+      "repo": "zsoltLelkes.github.io",
+      "environment": "development",
+      "ref": "main",
+      "created_at": "2026-03-26T08:31:32Z",
       "state": "success"
     },
     {
