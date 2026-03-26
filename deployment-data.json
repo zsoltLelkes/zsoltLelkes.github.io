@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-03-26T08:32:02.290Z",
+  "generatedAt": "2026-03-26T08:50:25.384Z",
   "organization": "zsoltLelkes",
   "rows": [
     {
@@ -7,26 +7,27 @@
       "repo": "zsoltLelkes.github.io",
       "environment": "github-pages",
       "ref": "main",
-      "created_at": "2026-03-26T08:31:53Z",
-      "state": "failure",
-      "last_success_at": null
-    },
-    {
-      "owner": "zsoltLelkes",
-      "repo": "zsoltLelkes.github.io",
-      "environment": "staging",
-      "ref": "main",
-      "created_at": "2026-03-26T08:31:32Z",
-      "state": "error",
-      "last_success_at": "2026-03-20T10:00:00Z"
+      "created_at": "2026-03-26T08:45:27Z",
+      "state": "success",
+      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/23585319423/job/68676989577"
     },
     {
       "owner": "zsoltLelkes",
       "repo": "zsoltLelkes.github.io",
       "environment": "development",
       "ref": "main",
-      "created_at": "2026-03-26T08:31:32Z",
-      "state": "success"
+      "created_at": "2026-03-26T08:44:59Z",
+      "state": "success",
+      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/23585319847/job/68676930778"
+    },
+    {
+      "owner": "zsoltLelkes",
+      "repo": "zsoltLelkes.github.io",
+      "environment": "staging",
+      "ref": "main",
+      "created_at": "2026-03-26T08:44:59Z",
+      "state": "success",
+      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/23585319846/job/68676930809"
     },
     {
       "owner": "zsoltLelkes",
@@ -34,7 +35,8 @@
       "environment": "staging",
       "ref": "main",
       "created_at": "2026-03-23T11:00:59Z",
-      "state": "success"
+      "state": "success",
+      "run_url": "https://github.com/zsoltLelkes/dashboardtest/actions/runs/23434031746/job/68167419390"
     },
     {
       "owner": "zsoltLelkes",
@@ -42,7 +44,8 @@
       "environment": "development",
       "ref": "main",
       "created_at": "2026-03-23T11:00:59Z",
-      "state": "success"
+      "state": "success",
+      "run_url": "https://github.com/zsoltLelkes/dashboardtest/actions/runs/23434031735/job/68167419342"
     }
   ]
 }
