@@ -95,8 +95,6 @@ async function fetchLatestDeploymentStatus(owner, repo, deploymentId, token) {
 
 /**
  * Čas najnovšieho statusu „success“ v histórii daného nasadenia (nie len najnovší status).
- * Pri novšom nasadení GitHub často nastaví starému najnovší stav „inactive“ – samotný úspech
- * zostáva v histórii statusov.
  */
 async function fetchNewestSuccessTimeFromDeployment(
   owner,
@@ -118,11 +116,6 @@ async function fetchNewestSuccessTimeFromDeployment(
   return success?.created_at || null;
 }
 
-/**
- * Actions často neukladajú „success“ do deployment statusov rovnako ako klasické nasadenia.
- * Fallback: behy s head_sha = commit nasadenia, conclusion = success → čas dokončenia behu.
- * Vyžaduje oprávnenie čítať Actions (fine-grained: Actions → Read).
- */
 async function fetchActionsNewestSuccessTimeForSha(owner, repo, sha, token) {
   if (!sha) return null;
   const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs?head_sha=${encodeURIComponent(sha)}&per_page=50`;
@@ -200,11 +193,6 @@ async function fetchWorkflowRunUrlForSha(owner, repo, sha, token) {
   }
 }
 
-/**
- * GitHub REST API pri zozname jobov často nevracia pole `environment` (overené na verejnom API),
- * preto sa nedá spoľahlivo párovať podľa job.environment.
- * Spájanie: workflow súbor v `run.path` zvyčajne obsahuje názov prostredia (deploy-staging.yml → staging).
- */
 function workflowPathMatchesEnvironment(workflowPath, envName) {
   if (!workflowPath || !envName || envName === "—") return false;
   const p = workflowPath.toLowerCase();
@@ -216,10 +204,6 @@ function workflowPathMatchesEnvironment(workflowPath, envName) {
   return false;
 }
 
-/**
- * Dynamicky: prejde nedávne úspešné behy; prvý, kde cesta workflow obsahuje názov prostredia.
- * Žiadne extra volania /jobs, žiadny limit 80 „šumu“ (pages, sync) pred staging.
- */
 async function findLastSuccessAtViaWorkflowPath(owner, repo, envName, token) {
   if (!envName || envName === "—") return null;
   const headers = {
@@ -257,11 +241,6 @@ async function findLastSuccessAtViaWorkflowPath(owner, repo, envName, token) {
   return null;
 }
 
-/**
- * Posledný čas úspechu v danom prostredí:
- * 1) Úspešné behy, kde workflow path zodpovedá názvu prostredia (bez /jobs – API tam často nemá environment).
- * 2) Nasadenia + história deployment statusov + Actions runs podľa sha.
- */
 async function findLastSuccessAt(owner, repo, envName, token) {
   const viaPath = await findLastSuccessAtViaWorkflowPath(
     owner,
