@@ -203,25 +203,17 @@
       return `${badge} <span class="status-meta">(doteraz žiadny ${successLbl})</span>`;
     }
 
-    /**
-     * @param {"repo-first"|"env-first"} order
-     */
-    function buildTableRowHtml(row, order) {
+    /** Poradie stĺpcov: Prostredie, Repozitár, Nasadený tag, Čas nasadenia, Stav */
+    function buildTableRowHtml(row) {
       const envLabel = row.environment || "—";
       const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
       const repoCell = `<a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a>`;
-      const mid = `
+      return `
+                <td>${envLabel}</td>
+                <td>${repoCell}</td>
                 <td>${row.ref || "—"}</td>
                 <td>${formatDate(row.created_at)}</td>
                 <td class="dashboard-cell--status">${buildStatusCellInnerHtml(row)}</td>`;
-      if (order === "repo-first") {
-        return `
-                <td>${repoCell}</td>
-                <td>${envLabel}</td>${mid}`;
-      }
-      return `
-                <td>${envLabel}</td>
-                <td>${repoCell}</td>${mid}`;
     }
 
     function renderByRepositorySection(rows) {
@@ -268,8 +260,8 @@
         table.innerHTML = `
               <thead>
                 <tr>
-                  <th>Repozitár</th>
                   <th>Prostredie</th>
+                  <th>Repozitár</th>
                   <th>Nasadený tag</th>
                   <th>Čas nasadenia</th>
                   <th>Stav</th>
@@ -281,7 +273,7 @@
         const tbody = table.querySelector("tbody");
         repoRows.forEach((row) => {
           const tr = document.createElement("tr");
-          tr.innerHTML = buildTableRowHtml(row, "repo-first");
+          tr.innerHTML = buildTableRowHtml(row);
           tbody.appendChild(tr);
         });
 
@@ -342,7 +334,7 @@
           const tbody = table.querySelector("tbody");
           envRows.forEach((row) => {
             const tr = document.createElement("tr");
-            tr.innerHTML = buildTableRowHtml(row, "env-first");
+            tr.innerHTML = buildTableRowHtml(row);
             tbody.appendChild(tr);
           });
 

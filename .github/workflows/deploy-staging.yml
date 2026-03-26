@@ -4,14 +4,21 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      fail_deploy:
+        description: "Zlyhaj nasadenie (test dashboardu – simulácia chyby)"
+        type: boolean
+        default: false
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: staging
     steps:
-      - name: Simulate deploy
+      - name: Deploy staging
         run: |
-          echo "Deploying..."
-          sleep 2
-          echo "Done"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.fail_deploy }}" = "true" ]; then
+            echo "::error title=Simulovaná chyba::Nasadenie do staging zlyhalo (naschvál)."
+            exit 1
+          fi
+          echo "Staging nasadenie OK"
