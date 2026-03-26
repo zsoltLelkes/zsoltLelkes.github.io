@@ -42,17 +42,26 @@ async function githubFetch(url, token) {
 }
 
 async function fetchDeploymentStatusesRaw(owner, repo, deploymentId, token) {
-  const url = `https://api.github.com/repos/${owner}/${repo}/deployments/${deploymentId}/statuses`;
-  const res = await fetch(url, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${token}`,
-      "X-GitHub-Api-Version": "2022-11-28"
-    }
-  });
-  if (!res.ok) return [];
-  const statuses = await res.json();
-  return Array.isArray(statuses) ? statuses : [];
+  const all = [];
+  let page = 1;
+  const maxPages = 10;
+  while (page <= maxPages) {
+    const url = `https://api.github.com/repos/${owner}/${repo}/deployments/${deploymentId}/statuses?per_page=100&page=${page}`;
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28"
+      }
+    });
+    if (!res.ok) break;
+    const statuses = await res.json();
+    const arr = Array.isArray(statuses) ? statuses : [];
+    all.push(...arr);
+    if (arr.length < 100) break;
+    page += 1;
+  }
+  return all;
 }
 
 function statusState(s) {
@@ -109,6 +118,59 @@ async function fetchNewestSuccessTimeFromDeployment(
   return success?.created_at || null;
 }
 
+/**
+ * Actions často neukladajú „success“ do deployment statusov rovnako ako klasické nasadenia.
+ * Fallback: behy s head_sha = commit nasadenia, conclusion = success → čas dokončenia behu.
+ * Vyžaduje oprávnenie čítať Actions (fine-grained: Actions → Read).
+ */
+async function fetchActionsNewestSuccessTimeForSha(owner, repo, sha, token) {
+  if (!sha) return null;
+  const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs?head_sha=${encodeURIComponent(sha)}&per_page=50`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28"
+      }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const runs = Array.isArray(data.workflow_runs) ? data.workflow_runs : [];
+    const ok = runs.filter((r) => r.conclusion === "success");
+    if (ok.length === 0) return null;
+    const sorted = [...ok].sort(
+      (a, b) =>
+        new Date(b.updated_at || 0) - new Date(a.updated_at || 0)
+    );
+    const run = sorted[0];
+    return (
+      run.updated_at ||
+      run.run_started_at ||
+      run.created_at ||
+      null
+    );
+  } catch {
+    return null;
+  }
+}
+
+async function fetchLastSuccessTimeForDeployment(owner, repo, deployment, token) {
+  const fromStatuses = await fetchNewestSuccessTimeFromDeployment(
+    owner,
+    repo,
+    deployment.id,
+    token
+  );
+  if (fromStatuses) return fromStatuses;
+  return await fetchActionsNewestSuccessTimeForSha(
+    owner,
+    repo,
+    deployment.sha,
+    token
+  );
+}
+
 /** Odkaz na workflow run pre commit (ak GitHub Actions v repozitári existujú). */
 async function fetchWorkflowRunUrlForSha(owner, repo, sha, token) {
   if (!sha) return null;
@@ -137,8 +199,8 @@ async function fetchWorkflowRunUrlForSha(owner, repo, sha, token) {
 }
 
 /**
- * Posledný čas úspechu v danom prostredí: pre každé nasadenie (od najnovšieho) hľadáme
- * v histórii statusov záznam „success“ (nie len aktuálny vrchol – ten môže byť inactive).
+ * Posledný čas úspechu v danom prostredí: nasadenia od najnovších – najprv história
+ * deployment statusov, ak nič → Actions API pre commit (sha) daného nasadenia.
  */
 async function findLastSuccessAt(owner, repo, envName, token) {
   let page = 1;
@@ -166,10 +228,10 @@ async function findLastSuccessAt(owner, repo, envName, token) {
 
     for (const d of arr) {
       if (envName === "—" && deploymentEnvironmentKey(d) !== "—") continue;
-      const successAt = await fetchNewestSuccessTimeFromDeployment(
+      const successAt = await fetchLastSuccessTimeForDeployment(
         owner,
         repo,
-        d.id,
+        d,
         token
       );
       if (successAt) {

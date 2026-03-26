@@ -24,7 +24,7 @@ Ukladaj ako **Repository secrets** (nie Variables) – hodnoty sú maskované v 
 | *(žiadny extra)* | Ak v `config.json` sleduješ **iba repozitár, v ktorom tento workflow beží**, často stačí vstavaný **`GITHUB_TOKEN`**. |
 | **`DEPLOYMENTS_SYNC_TOKEN`** | **Potrebné** pri sledovaní **iných** repozitárov (aj v tej istej org): default **`GITHUB_TOKEN`** na ne nemá právo → API vráti **403** („Resource not accessible by integration“). Vytvor **PAT** na svojom účte (ten musí mať aspoň read na tie repá) a ulož ho ako tento secret. Skript použije `DEPLOYMENTS_SYNC_TOKEN`, ak je nastavený, inak `GITHUB_TOKEN`. |
 
-**PAT (odporúčané minimum):** *Fine-grained* token – Resource owner = org alebo účet, vybrané repozitáre, oprávnenie **Deployments: Read-only** (prípadne classic PAT so scope **`repo`**, ak potrebuješ širší prístup). Pri org s **SSO** token po vytvorení **autorizuj** pre danú organizáciu.
+**PAT (odporúčané minimum):** *Fine-grained* token – Resource owner = org alebo účet, vybrané repozitáre, **Deployments: Read-only** a **Actions: Read** (Actions je potrebné na doplnenie `last_success_at` a `run_url`, keď GitHub nevyplní históriu deployment statusov rovnako ako pri čistých Actions nasadeniach). Classic PAT so scope **`repo`** to zvyčajne pokrýva. Pri org s **SSO** token po vytvorení **autorizuj** pre danú organizáciu.
 
 Pre **súkromné** repozitáre musí mať účet, pod ktorým PAT vytváraš, prístup na všetky uvedené repá; token nepridá oprávnenia nad rámec účtu.
 
