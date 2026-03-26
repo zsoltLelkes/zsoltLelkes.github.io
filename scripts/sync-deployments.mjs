@@ -137,7 +137,9 @@ async function fetchActionsNewestSuccessTimeForSha(owner, repo, sha, token) {
     if (!res.ok) return null;
     const data = await res.json();
     const runs = Array.isArray(data.workflow_runs) ? data.workflow_runs : [];
-    const ok = runs.filter((r) => r.conclusion === "success");
+    const ok = runs.filter(
+      (r) => String(r.conclusion || "").toLowerCase() === "success"
+    );
     if (ok.length === 0) return null;
     const sorted = [...ok].sort(
       (a, b) =>
@@ -198,11 +200,95 @@ async function fetchWorkflowRunUrlForSha(owner, repo, sha, token) {
   }
 }
 
+function jobEnvironmentName(job) {
+  if (!job?.environment) return null;
+  const e = job.environment;
+  if (typeof e === "string") return e.trim() || null;
+  if (typeof e === "object" && e != null && e.name != null) {
+    return String(e.name).trim() || null;
+  }
+  return null;
+}
+
+async function fetchJobsForWorkflowRun(owner, repo, runId, token) {
+  const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/jobs?per_page=100`;
+  const res = await fetch(url, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28"
+    }
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data.jobs) ? data.jobs : [];
+}
+
+function envNamesMatch(a, b) {
+  return String(a || "").toLowerCase() === String(b || "").toLowerCase();
+}
+
 /**
- * Posledný čas úspechu v danom prostredí: nasadenia od najnovších – najprv história
- * deployment statusov, ak nič → Actions API pre commit (sha) daného nasadenia.
+ * Dynamicky: prejde nedávne workflow behy (najnovšie prvé), pri úspešných načíta joby
+ * a hľadá job s rovnakým GitHub Environment ako v Deployments API (environment: v YAML).
+ * Nevyžaduje názvy .yml súborov ani konštanty.
+ */
+async function findLastSuccessAtViaRunJobs(owner, repo, envName, token) {
+  if (!envName || envName === "—") return null;
+  const headers = {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${token}`,
+    "X-GitHub-Api-Version": "2022-11-28"
+  };
+  let page = 1;
+  const maxPages = 15;
+  let successRunsChecked = 0;
+  const maxSuccessRunsToCheck = 80;
+
+  while (page <= maxPages) {
+    const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs?per_page=100&page=${page}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const runs = Array.isArray(data.workflow_runs) ? data.workflow_runs : [];
+    if (runs.length === 0) break;
+
+    const sorted = [...runs].sort(
+      (a, b) =>
+        new Date(b.updated_at || 0) - new Date(a.updated_at || 0)
+    );
+
+    for (const run of sorted) {
+      if (String(run.conclusion || "").toLowerCase() !== "success") continue;
+      successRunsChecked += 1;
+      if (successRunsChecked > maxSuccessRunsToCheck) {
+        return null;
+      }
+
+      const jobs = await fetchJobsForWorkflowRun(owner, repo, run.id, token);
+      for (const job of jobs) {
+        const jobEnv = jobEnvironmentName(job);
+        if (jobEnv && envNamesMatch(jobEnv, envName)) {
+          return run.updated_at || run.created_at || null;
+        }
+      }
+    }
+
+    if (runs.length < 100) break;
+    page += 1;
+  }
+  return null;
+}
+
+/**
+ * Posledný čas úspechu v danom prostredí:
+ * 1) Behové joby s environment (dynamické, podľa repozitára z config.json).
+ * 2) Nasadenia + história deployment statusov + Actions runs podľa sha.
  */
 async function findLastSuccessAt(owner, repo, envName, token) {
+  const viaJobs = await findLastSuccessAtViaRunJobs(owner, repo, envName, token);
+  if (viaJobs) return viaJobs;
+
   let page = 1;
   const maxPages = 15;
   while (page <= maxPages) {
