@@ -128,6 +128,27 @@ body {
   width: 33%;
 }
 
+/* Sekcia podľa repozitára: 4 stĺpce (bez Repozitár) */
+.dashboard-repo-table.dashboard-table--cols-4 th:nth-child(1),
+.dashboard-repo-table.dashboard-table--cols-4 td:nth-child(1) {
+  width: 18%;
+}
+
+.dashboard-repo-table.dashboard-table--cols-4 th:nth-child(2),
+.dashboard-repo-table.dashboard-table--cols-4 td:nth-child(2) {
+  width: 20%;
+}
+
+.dashboard-repo-table.dashboard-table--cols-4 th:nth-child(3),
+.dashboard-repo-table.dashboard-table--cols-4 td:nth-child(3) {
+  width: 18%;
+}
+
+.dashboard-repo-table.dashboard-table--cols-4 th:nth-child(4),
+.dashboard-repo-table.dashboard-table--cols-4 td:nth-child(4) {
+  width: 44%;
+}
+
 .dashboard-table th {
   background: #245179;
   color: #fff;

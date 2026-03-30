@@ -213,10 +213,18 @@
       return `${badge} <span class="status-meta">(doteraz žiadny ${successLbl})</span>`;
     }
 
-    function buildMainCells(row) {
+    function buildMainCells(row, options) {
+      const omitRepo = options && options.omitRepo;
       const envLabel = row.environment || "—";
       const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
       const repoCell = `<a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a>`;
+      if (omitRepo) {
+        return `
+                <td>${envLabel}</td>
+                <td>${row.ref || "—"}</td>
+                <td>${formatDate(row.created_at)}</td>
+                <td class="dashboard-cell--status">${buildStatusCellInnerHtml(row)}</td>`;
+      }
       return `
                 <td>${envLabel}</td>
                 <td>${repoCell}</td>
@@ -225,7 +233,8 @@
                 <td class="dashboard-cell--status">${buildStatusCellInnerHtml(row)}</td>`;
     }
 
-    function buildLastSuccessSubRowCells(row) {
+    function buildLastSuccessSubRowCells(row, options) {
+      const omitRepo = options && options.omitRepo;
       const envLabel = row.environment || "—";
       const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
       const repoCell = `<a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a>`;
@@ -236,6 +245,13 @@
         row.last_success_run_url
       );
       const statusInner = `<span class="status-meta">posledný ${successLbl} – ${formatDate(row.last_success_at)}</span>`;
+      if (omitRepo) {
+        return `
+                <td>${envLabel}</td>
+                <td>${row.ref || "—"}</td>
+                <td>${formatDate(row.created_at)}</td>
+                <td class="dashboard-cell--status">${statusInner}</td>`;
+      }
       return `
                 <td>${envLabel}</td>
                 <td>${repoCell}</td>
@@ -248,27 +264,43 @@
      * Jeden logický záznam = jeden alebo dva riadky (podradený len pri last_success_at a stave ≠ success).
      * Pruhy sa striedajú po každom fyzickom riadku: podriadok „posledný success“ má opačnú farbu ako hlavný riadok.
      */
-    function buildTableRowsHtml(row, primaryStripeAlt) {
+    function buildTableRowsHtml(row, primaryStripeAlt, cellOptions) {
+      const opts = cellOptions || {};
       const primaryClass = primaryStripeAlt ? " dashboard-row--stripe-alt" : "";
-      const main = `<tr class="dashboard-row--primary${primaryClass}">${buildMainCells(row)}</tr>`;
+      const main = `<tr class="dashboard-row--primary${primaryClass}">${buildMainCells(row, opts)}</tr>`;
       if (row.last_success_at && !isSuccessState(row.state)) {
         const subStripeAlt = !primaryStripeAlt;
         const subClass = subStripeAlt ? " dashboard-row--stripe-alt" : "";
-        return `${main}<tr class="dashboard-row--last-success${subClass}">${buildLastSuccessSubRowCells(row)}</tr>`;
+        return `${main}<tr class="dashboard-row--last-success${subClass}">${buildLastSuccessSubRowCells(row, opts)}</tr>`;
       }
       return main;
     }
 
-    function renderByRepositorySection(rows) {
+    /**
+     * Poradie tabuliek podľa config.json (organization + repositories); ostatné repozitáre na konci.
+     */
+    function orderRepoSectionKeys(byRepo, organization, repositories) {
+      const org = String(organization || "").trim();
+      const ordered = [];
+      const seen = new Set();
+      if (Array.isArray(repositories)) {
+        for (const repo of repositories) {
+          const key = `${org}/${repo}`;
+          if (byRepo[key] && !seen.has(key)) {
+            ordered.push(key);
+            seen.add(key);
+          }
+        }
+      }
+      const rest = Object.keys(byRepo)
+        .filter((k) => !seen.has(k))
+        .sort((a, b) => a.localeCompare(b, "sk"));
+      return [...ordered, ...rest];
+    }
+
+    function renderByRepositorySection(rows, config) {
       const section = document.createElement("section");
       section.className = "dashboard-section";
-      section.setAttribute("aria-labelledby", "section-by-repo-title");
-
-      const title = document.createElement("h2");
-      title.id = "section-by-repo-title";
-      title.className = "dashboard-section__title";
-      title.textContent = "Podľa repozitára";
-      section.appendChild(title);
 
       const byRepo = {};
       rows.forEach((row) => {
@@ -286,9 +318,18 @@
         );
       });
 
-      const sortedKeys = Object.keys(byRepo).sort((a, b) =>
-        a.localeCompare(b, "sk")
+      const organization =
+        (config && config.organization) || rows[0]?.owner || "";
+      const repositories =
+        (config && Array.isArray(config.repositories) && config.repositories) ||
+        [];
+      const sortedKeys = orderRepoSectionKeys(
+        byRepo,
+        organization,
+        repositories
       );
+
+      const cellOptions = { omitRepo: true };
 
       sortedKeys.forEach((key) => {
         const repoRows = byRepo[key];
@@ -299,12 +340,12 @@
         heading.innerHTML = `<a href="${repoUrl}" target="_blank" rel="noopener">${first.repo}</a>`;
 
         const table = document.createElement("table");
-        table.className = "dashboard-table dashboard-repo-table";
+        table.className =
+          "dashboard-table dashboard-repo-table dashboard-table--cols-4";
         table.innerHTML = `
               <thead>
                 <tr>
                   <th>Prostredie</th>
-                  <th>Repozitár</th>
                   <th>Nasadený tag</th>
                   <th>Čas nasadenia</th>
                   <th>Stav</th>
@@ -320,7 +361,7 @@
           const primaryStripe = visualStripe % 2 === 0;
           tbody.insertAdjacentHTML(
             "beforeend",
-            buildTableRowsHtml(row, primaryStripe)
+            buildTableRowsHtml(row, primaryStripe, cellOptions)
           );
           visualStripe += 1;
           if (row.last_success_at && !isSuccessState(row.state)) {
@@ -388,7 +429,7 @@
             const primaryStripe = visualStripe % 2 === 0;
             tbody.insertAdjacentHTML(
               "beforeend",
-              buildTableRowsHtml(row, primaryStripe)
+              buildTableRowsHtml(row, primaryStripe, null)
             );
             visualStripe += 1;
             if (row.last_success_at && !isSuccessState(row.state)) {
@@ -402,7 +443,7 @@
       return section;
     }
 
-    function renderDashboard(payload) {
+    function renderDashboard(payload, config) {
       const rows = Array.isArray(payload.rows) ? payload.rows : [];
       const generatedAt = payload.generatedAt
         ? formatGeneratedAt(payload.generatedAt)
@@ -422,18 +463,24 @@
       container.innerHTML = "";
 
       container.appendChild(buildDataHint(generatedAt));
-      container.appendChild(renderByRepositorySection(rows));
+      container.appendChild(renderByRepositorySection(rows, config));
       container.appendChild(renderByEnvironmentSection(rows));
 
       setupClientFilters();
     }
 
-    fetch("deployment-data.json")
-      .then((res) => {
-        if (!res.ok) throw new Error("Nepodarilo sa načítať deployment-data.json (HTTP " + res.status + ")");
+    Promise.all([
+      fetch("deployment-data.json").then((res) => {
+        if (!res.ok) {
+          throw new Error(
+            "Nepodarilo sa načítať deployment-data.json (HTTP " + res.status + ")"
+          );
+        }
         return res.json();
-      })
-      .then((payload) => renderDashboard(payload))
+      }),
+      fetch("config.json").then((res) => (res.ok ? res.json() : {}))
+    ])
+      .then(([payload, config]) => renderDashboard(payload, config))
       .catch((err) => showError("Chyba pri načítavaní: " + err.message));
   </script>
 </body>
