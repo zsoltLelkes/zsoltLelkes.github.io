@@ -86,11 +86,84 @@
     }
 
     function showError(msg) {
+      document.getElementById("dashboardAnchorNav")?.remove();
+      document.body.classList.remove("dashboard-page--with-nav");
       document.getElementById("loading").style.display = "none";
       document.getElementById("tablesContainer").style.display = "none";
       const err = document.getElementById("error");
       err.textContent = msg;
       err.style.display = "block";
+    }
+
+    /**
+     * Fixné ľavé menu so všetkými kotvami na tabuľky (a úvod druhej sekcie).
+     */
+    function renderAnchorNav() {
+      document.getElementById("dashboardAnchorNav")?.remove();
+      document.body.classList.remove("dashboard-page--with-nav");
+
+      const repoTables = document.querySelectorAll(
+        "#tablesContainer .dashboard-section:not(.dashboard-section--secondary) table[id^=\"repo-\"]"
+      );
+      const envSection = document.querySelector(
+        "#tablesContainer .dashboard-section--secondary"
+      );
+      const envTables = envSection
+        ? envSection.querySelectorAll("table.dashboard-data-table[id^=\"env-\"]")
+        : [];
+
+      const repoItems = Array.from(repoTables).map((t) => ({
+        href: "#" + t.id,
+        label: t.getAttribute("data-nav-label") || t.id
+      }));
+
+      const envItems = [];
+      if (envSection) {
+        envItems.push({
+          href: "#section-by-env-title",
+          label: "Nadpis a filtre"
+        });
+      }
+      Array.from(envTables).forEach((t) => {
+        envItems.push({
+          href: "#" + t.id,
+          label: t.getAttribute("data-nav-label") || t.id
+        });
+      });
+
+      if (repoItems.length === 0 && envItems.length === 0) return;
+
+      const nav = document.createElement("nav");
+      nav.id = "dashboardAnchorNav";
+      nav.className = "dashboard-anchor-nav";
+      nav.setAttribute("aria-label", "Obsah stránky");
+
+      function appendGroup(title, items) {
+        if (items.length === 0) return;
+        const pt = document.createElement("p");
+        pt.className = "dashboard-anchor-nav__group-title";
+        pt.textContent = title;
+        nav.appendChild(pt);
+        const ul = document.createElement("ul");
+        ul.className = "dashboard-anchor-nav__list";
+        items.forEach(({ href, label }) => {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.href = href;
+          a.className = "dashboard-anchor-nav__link";
+          a.textContent = label;
+          li.appendChild(a);
+          ul.appendChild(li);
+        });
+        nav.appendChild(ul);
+      }
+
+      appendGroup("Repozitáre", repoItems);
+      appendGroup("Podľa prostredia", envItems);
+
+      document.body.classList.add("dashboard-page--with-nav");
+      const dashboard = document.querySelector(".dashboard");
+      if (dashboard) dashboard.prepend(nav);
     }
 
     function buildDataHint(generatedAtLabel) {
@@ -375,6 +448,7 @@
 
         const table = document.createElement("table");
         table.id = makeTableAnchorId("repo", key);
+        table.setAttribute("data-nav-label", first.repo);
         table.className =
           "dashboard-table dashboard-repo-table dashboard-table--cols-4";
         table.innerHTML = `
@@ -448,6 +522,10 @@
             "env",
             env === "—" ? "none" : env
           );
+          table.setAttribute(
+            "data-nav-label",
+            env === "—" ? "—" : env
+          );
           table.className = "dashboard-table dashboard-data-table";
           table.innerHTML = `
               <thead>
@@ -489,6 +567,8 @@
         : "";
 
       if (rows.length === 0) {
+        document.getElementById("dashboardAnchorNav")?.remove();
+        document.body.classList.remove("dashboard-page--with-nav");
         document.getElementById("loading").textContent =
           "Žiadne nasadenia v deployment-data.json. Spusti workflow „Sync deployment data“ alebo počkaj na plánovaný beh.";
         document.getElementById("loading").style.display = "block";
@@ -506,6 +586,7 @@
       container.appendChild(renderByEnvironmentSection(rows));
 
       setupClientFilters();
+      renderAnchorNav();
       requestAnimationFrame(() => scrollToHashAnchorIfPresent());
     }
 
