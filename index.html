@@ -246,12 +246,15 @@
 
     /**
      * Jeden logický záznam = jeden alebo dva riadky (podradený len pri last_success_at a stave ≠ success).
+     * Pruhy sa striedajú po každom fyzickom riadku: podriadok „posledný success“ má opačnú farbu ako hlavný riadok.
      */
-    function buildTableRowsHtml(row, stripeAlt) {
-      const stripeClass = stripeAlt ? " dashboard-row--stripe-alt" : "";
-      const main = `<tr class="dashboard-row--primary${stripeClass}">${buildMainCells(row)}</tr>`;
+    function buildTableRowsHtml(row, primaryStripeAlt) {
+      const primaryClass = primaryStripeAlt ? " dashboard-row--stripe-alt" : "";
+      const main = `<tr class="dashboard-row--primary${primaryClass}">${buildMainCells(row)}</tr>`;
       if (row.last_success_at && !isSuccessState(row.state)) {
-        return `${main}<tr class="dashboard-row--last-success${stripeClass}">${buildLastSuccessSubRowCells(row)}</tr>`;
+        const subStripeAlt = !primaryStripeAlt;
+        const subClass = subStripeAlt ? " dashboard-row--stripe-alt" : "";
+        return `${main}<tr class="dashboard-row--last-success${subClass}">${buildLastSuccessSubRowCells(row)}</tr>`;
       }
       return main;
     }
@@ -311,11 +314,18 @@
             `;
 
         const tbody = table.querySelector("tbody");
-        repoRows.forEach((row, idx) => {
+        let visualStripe = 0;
+        repoRows.forEach((row) => {
+          /* Párne indexy riadkov v DOM = pruh „alt“ (#f8fafc); prvý fyzický riadok tabuľky je alt. */
+          const primaryStripe = visualStripe % 2 === 0;
           tbody.insertAdjacentHTML(
             "beforeend",
-            buildTableRowsHtml(row, idx % 2 === 1)
+            buildTableRowsHtml(row, primaryStripe)
           );
+          visualStripe += 1;
+          if (row.last_success_at && !isSuccessState(row.state)) {
+            visualStripe += 1;
+          }
         });
 
         section.appendChild(heading);
@@ -373,11 +383,17 @@
             `;
 
           const tbody = table.querySelector("tbody");
-          envRows.forEach((row, idx) => {
+          let visualStripe = 0;
+          envRows.forEach((row) => {
+            const primaryStripe = visualStripe % 2 === 0;
             tbody.insertAdjacentHTML(
               "beforeend",
-              buildTableRowsHtml(row, idx % 2 === 1)
+              buildTableRowsHtml(row, primaryStripe)
             );
+            visualStripe += 1;
+            if (row.last_success_at && !isSuccessState(row.state)) {
+              visualStripe += 1;
+            }
           });
 
           section.appendChild(table);
