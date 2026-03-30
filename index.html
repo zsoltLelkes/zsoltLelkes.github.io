@@ -51,6 +51,40 @@
       }
     }
 
+    /**
+     * Bezpečný fragment pre URL (#anchor): owner/repo, názov prostredia atď.
+     */
+    function anchorIdSegment(s) {
+      return String(s || "")
+        .toLowerCase()
+        .replace(/\//g, "-")
+        .replace(/[^a-z0-9._-]+/g, "-")
+        .replace(/\.+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .replace(/-+/g, "-");
+    }
+
+    function makeTableAnchorId(prefix, segment) {
+      const seg = anchorIdSegment(segment);
+      return `${prefix}-${seg || "x"}`;
+    }
+
+    /**
+     * Po dynamickom vykreslení tabuliek zarovnať scroll na #id z URL (zdieľané odkazy).
+     */
+    function scrollToHashAnchorIfPresent() {
+      let raw = (location.hash || "").replace(/^#/, "");
+      if (!raw) return;
+      try {
+        raw = decodeURIComponent(raw);
+      } catch (_) {
+        /* neplatný escape – skús pôvodný reťazec */
+      }
+      const el = document.getElementById(raw);
+      if (!el || typeof el.scrollIntoView !== "function") return;
+      el.scrollIntoView({ block: "start", behavior: "auto" });
+    }
+
     function showError(msg) {
       document.getElementById("loading").style.display = "none";
       document.getElementById("tablesContainer").style.display = "none";
@@ -340,6 +374,7 @@
         heading.innerHTML = `<a href="${repoUrl}" target="_blank" rel="noopener">${first.repo}</a>`;
 
         const table = document.createElement("table");
+        table.id = makeTableAnchorId("repo", key);
         table.className =
           "dashboard-table dashboard-repo-table dashboard-table--cols-4";
         table.innerHTML = `
@@ -409,6 +444,10 @@
           const envRows = byEnv[env];
 
           const table = document.createElement("table");
+          table.id = makeTableAnchorId(
+            "env",
+            env === "—" ? "none" : env
+          );
           table.className = "dashboard-table dashboard-data-table";
           table.innerHTML = `
               <thead>
@@ -467,6 +506,7 @@
       container.appendChild(renderByEnvironmentSection(rows));
 
       setupClientFilters();
+      requestAnimationFrame(() => scrollToHashAnchorIfPresent());
     }
 
     Promise.all([
@@ -482,6 +522,8 @@
     ])
       .then(([payload, config]) => renderDashboard(payload, config))
       .catch((err) => showError("Chyba pri načítavaní: " + err.message));
+
+    window.addEventListener("hashchange", scrollToHashAnchorIfPresent);
   </script>
 </body>
 </html>

@@ -102,6 +102,11 @@ body {
   margin-bottom: 2rem;
 }
 
+/* Kotvy (#repo-… / #env-…): mierny odstup od horného okraja pri scrolli */
+.dashboard-table[id] {
+  scroll-margin-top: 1rem;
+}
+
 /* Fixné šírky stĺpcov – tag + čas zúžené, stav širší (doplnkový text) */
 .dashboard-table th:nth-child(1),
 .dashboard-table td:nth-child(1) {
