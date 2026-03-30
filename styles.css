@@ -128,25 +128,25 @@ body {
   width: 33%;
 }
 
-/* Sekcia podľa repozitára: 4 stĺpce (bez Repozitár) */
+/* Sekcia podľa repozitára: 4 stĺpce (bez Repozitár); Stav zúžený, zvyšok na ostatné */
 .dashboard-repo-table.dashboard-table--cols-4 th:nth-child(1),
 .dashboard-repo-table.dashboard-table--cols-4 td:nth-child(1) {
-  width: 18%;
+  width: 22%;
 }
 
 .dashboard-repo-table.dashboard-table--cols-4 th:nth-child(2),
 .dashboard-repo-table.dashboard-table--cols-4 td:nth-child(2) {
-  width: 20%;
+  width: 24%;
 }
 
 .dashboard-repo-table.dashboard-table--cols-4 th:nth-child(3),
 .dashboard-repo-table.dashboard-table--cols-4 td:nth-child(3) {
-  width: 18%;
+  width: 22%;
 }
 
 .dashboard-repo-table.dashboard-table--cols-4 th:nth-child(4),
 .dashboard-repo-table.dashboard-table--cols-4 td:nth-child(4) {
-  width: 44%;
+  width: 32%;
 }
 
 .dashboard-table th {
