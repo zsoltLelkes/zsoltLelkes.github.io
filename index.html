@@ -346,24 +346,25 @@
       const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
       const repoCell = `<a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a>`;
       const successBadgeInner =
-        '<span class="status status--success status--inline">success</span>';
+        '<span class="status status--success dashboard-last-success-badge">success</span>';
       const successLbl = wrapStatusBadgeWithRunUrl(
         successBadgeInner,
         row.last_success_run_url
       );
-      const statusInner = `<span class="status-meta">posledný ${successLbl} – ${formatDate(row.last_success_at)}</span>`;
+      const lastSuccessTime = formatDate(row.last_success_at);
+      const statusInner = `<span class="status-meta">posledný ${successLbl} – ${lastSuccessTime}</span>`;
       if (omitRepo) {
         return `
                 <td>${envLabel}</td>
                 <td>${row.ref || "—"}</td>
-                <td>${formatDate(row.created_at)}</td>
+                <td>${lastSuccessTime}</td>
                 <td class="dashboard-cell--status">${statusInner}</td>`;
       }
       return `
                 <td>${envLabel}</td>
                 <td>${repoCell}</td>
                 <td>${row.ref || "—"}</td>
-                <td>${formatDate(row.created_at)}</td>
+                <td>${lastSuccessTime}</td>
                 <td class="dashboard-cell--status">${statusInner}</td>`;
     }
 

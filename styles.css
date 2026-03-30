@@ -378,6 +378,14 @@ a.status-badge-link:focus-visible {
   vertical-align: 0.08em;
 }
 
+/* Riadok „posledný success“: plná veľkosť badge ako pri hlavnom stave (nie .status--inline) */
+.status-meta .dashboard-last-success-badge {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+  margin: 0 0.12rem;
+  vertical-align: middle;
+}
+
 .loading {
   padding: 2rem;
   text-align: center;
