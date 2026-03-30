@@ -235,9 +235,9 @@
         successBadgeInner,
         row.last_success_run_url
       );
-      const statusInner = `<span class="status-meta">(posledný ${successLbl} – ${formatDate(row.last_success_at)})</span>`;
+      const statusInner = `<span class="status-meta">posledný ${successLbl} – ${formatDate(row.last_success_at)}</span>`;
       return `
-                <td class="dashboard-cell--sub-indent">${envLabel}</td>
+                <td>${envLabel}</td>
                 <td>${repoCell}</td>
                 <td>${row.ref || "—"}</td>
                 <td>${formatDate(row.created_at)}</td>

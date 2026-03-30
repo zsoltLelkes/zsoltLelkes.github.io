@@ -71,19 +71,24 @@ body {
   margin-bottom: 0;
 }
 
-.dashboard-repo-table tbody tr.dashboard-row--stripe-alt {
+/* Pruhy na bunkách: pri border-collapse sa farba na <tr> spoľahlivo nevykreslí. */
+.dashboard-repo-table tbody tr.dashboard-row--stripe-alt td {
   background: #f8fafc;
 }
 
-.dashboard-repo-table tbody tr:not(.dashboard-row--stripe-alt) {
+.dashboard-repo-table tbody tr:not(.dashboard-row--stripe-alt) td {
   background: #fff;
 }
 
-.dashboard-repo-table tbody tr.dashboard-row--primary:hover,
-.dashboard-repo-table tbody tr.dashboard-row--primary:hover + tr.dashboard-row--last-success,
-.dashboard-repo-table tbody tr.dashboard-row--primary:has(+ tr.dashboard-row--last-success:hover),
-.dashboard-repo-table tbody tr.dashboard-row--last-success:hover {
+.dashboard-repo-table tbody tr.dashboard-row--primary:hover td,
+.dashboard-repo-table tbody tr.dashboard-row--primary:hover + tr.dashboard-row--last-success td,
+.dashboard-repo-table tbody tr.dashboard-row--primary:has(+ tr.dashboard-row--last-success:hover) td,
+.dashboard-repo-table tbody tr.dashboard-row--last-success:hover td {
   background: #eef4fa;
+}
+
+.dashboard-repo-table tbody tr.dashboard-row--last-success td {
+  padding-left: calc(0.75rem + 2.5%);
 }
 
 .dashboard-table {
@@ -141,18 +146,18 @@ body {
   vertical-align: middle;
 }
 
-.dashboard-data-table tbody tr.dashboard-row--stripe-alt {
+.dashboard-data-table tbody tr.dashboard-row--stripe-alt td {
   background: #f8fafc;
 }
 
-.dashboard-data-table tbody tr:not(.dashboard-row--stripe-alt) {
+.dashboard-data-table tbody tr:not(.dashboard-row--stripe-alt) td {
   background: #fff;
 }
 
-.dashboard-data-table tbody tr.dashboard-row--primary:hover,
-.dashboard-data-table tbody tr.dashboard-row--primary:hover + tr.dashboard-row--last-success,
-.dashboard-data-table tbody tr.dashboard-row--primary:has(+ tr.dashboard-row--last-success:hover),
-.dashboard-data-table tbody tr.dashboard-row--last-success:hover {
+.dashboard-data-table tbody tr.dashboard-row--primary:hover td,
+.dashboard-data-table tbody tr.dashboard-row--primary:hover + tr.dashboard-row--last-success td,
+.dashboard-data-table tbody tr.dashboard-row--primary:has(+ tr.dashboard-row--last-success:hover) td,
+.dashboard-data-table tbody tr.dashboard-row--last-success:hover td {
   background: #eef4fa;
 }
 
@@ -160,8 +165,8 @@ body {
   display: none;
 }
 
-.dashboard-cell--sub-indent {
-  padding-left: calc(1rem + 5%) !important;
+.dashboard-data-table tbody tr.dashboard-row--last-success td {
+  padding-left: calc(0.75rem + 2.5%);
 }
 
 .dashboard-table a {
