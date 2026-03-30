@@ -71,15 +71,18 @@ body {
   margin-bottom: 0;
 }
 
-.dashboard-repo-table tbody tr:nth-child(even) {
+.dashboard-repo-table tbody tr.dashboard-row--stripe-alt {
   background: #f8fafc;
 }
 
-.dashboard-repo-table tbody tr:nth-child(odd) {
+.dashboard-repo-table tbody tr:not(.dashboard-row--stripe-alt) {
   background: #fff;
 }
 
-.dashboard-repo-table tbody tr:hover {
+.dashboard-repo-table tbody tr.dashboard-row--primary:hover,
+.dashboard-repo-table tbody tr.dashboard-row--primary:hover + tr.dashboard-row--last-success,
+.dashboard-repo-table tbody tr.dashboard-row--primary:has(+ tr.dashboard-row--last-success:hover),
+.dashboard-repo-table tbody tr.dashboard-row--last-success:hover {
   background: #eef4fa;
 }
 
@@ -138,20 +141,27 @@ body {
   vertical-align: middle;
 }
 
-.dashboard-data-table tbody tr:nth-child(even) {
+.dashboard-data-table tbody tr.dashboard-row--stripe-alt {
   background: #f8fafc;
 }
 
-.dashboard-data-table tbody tr:nth-child(odd) {
+.dashboard-data-table tbody tr:not(.dashboard-row--stripe-alt) {
   background: #fff;
 }
 
-.dashboard-data-table tbody tr:hover {
+.dashboard-data-table tbody tr.dashboard-row--primary:hover,
+.dashboard-data-table tbody tr.dashboard-row--primary:hover + tr.dashboard-row--last-success,
+.dashboard-data-table tbody tr.dashboard-row--primary:has(+ tr.dashboard-row--last-success:hover),
+.dashboard-data-table tbody tr.dashboard-row--last-success:hover {
   background: #eef4fa;
 }
 
 .dashboard-data-table tbody tr[hidden] {
   display: none;
+}
+
+.dashboard-cell--sub-indent {
+  padding-left: calc(1rem + 5%) !important;
 }
 
 .dashboard-table a {

@@ -113,7 +113,7 @@
       let totalVisible = 0;
       document.querySelectorAll("table.dashboard-data-table").forEach((table) => {
         let visibleCount = 0;
-        table.querySelectorAll("tbody tr").forEach((tr) => {
+        table.querySelectorAll("tbody tr.dashboard-row--primary").forEach((tr) => {
           const tds = tr.querySelectorAll("td");
           let match = true;
           for (let i = 0; i < 5; i++) {
@@ -125,6 +125,10 @@
             }
           }
           tr.hidden = !match;
+          const sub = tr.nextElementSibling;
+          if (sub && sub.classList.contains("dashboard-row--last-success")) {
+            sub.hidden = !match;
+          }
           if (match) visibleCount += 1;
         });
         table.hidden = visibleCount === 0;
@@ -168,6 +172,21 @@
     }
 
     /**
+     * Obalí badge HTML odkazom na Actions run/job (rovnaké správanie ako pri hlavnom stave).
+     */
+    function wrapStatusBadgeWithRunUrl(innerHtml, runUrl) {
+      const raw = runUrl && String(runUrl).trim();
+      if (!raw) return innerHtml;
+      try {
+        const u = new URL(raw);
+        if (u.protocol !== "http:" && u.protocol !== "https:") return innerHtml;
+        return `<a class="status-badge-link" href="${escapeAttr(u.href)}" target="_blank" rel="noopener noreferrer" title="Otvoriť workflow run na GitHube">${innerHtml}</a>`;
+      } catch {
+        return innerHtml;
+      }
+    }
+
+    /**
      * Hlavný badge stavu; ak je v riadku run_url (z deployment-data.json), obalí ho odkaz na GitHub Actions run.
      */
     function buildPrimaryBadgeHtml(row) {
@@ -175,20 +194,11 @@
       const statusClass =
         state === "—" ? "status--loading" : getStatusClass(state);
       const inner = `<span class="status ${statusClass}">${state}</span>`;
-      const raw = row.run_url && String(row.run_url).trim();
-      if (!raw) return inner;
-      try {
-        const u = new URL(raw);
-        if (u.protocol !== "http:" && u.protocol !== "https:") return inner;
-        return `<a class="status-badge-link" href="${escapeAttr(u.href)}" target="_blank" rel="noopener noreferrer" title="Otvoriť workflow run na GitHube">${inner}</a>`;
-      } catch {
-        return inner;
-      }
+      return wrapStatusBadgeWithRunUrl(inner, row.run_url);
     }
 
     /**
-     * Vnútro bunky „Stav“. Pri stave ≠ success: posledný čas success alebo „doteraz žiadny success“.
-     * Polia last_success_at dopĺňa sync skript (deployment-data.json).
+     * Bunka „Stav“ na hlavnom riadku. Ak existuje last_success_at, text ide do podradeného riadku.
      */
     function buildStatusCellInnerHtml(row) {
       const badge = buildPrimaryBadgeHtml(row);
@@ -198,13 +208,12 @@
       const successLbl =
         '<span class="status status--success status--inline">success</span>';
       if (row.last_success_at) {
-        return `${badge} <span class="status-meta">(posledný ${successLbl} – ${formatDate(row.last_success_at)})</span>`;
+        return badge;
       }
       return `${badge} <span class="status-meta">(doteraz žiadny ${successLbl})</span>`;
     }
 
-    /** Poradie stĺpcov: Prostredie, Repozitár, Nasadený tag, Čas nasadenia, Stav */
-    function buildTableRowHtml(row) {
+    function buildMainCells(row) {
       const envLabel = row.environment || "—";
       const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
       const repoCell = `<a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a>`;
@@ -214,6 +223,37 @@
                 <td>${row.ref || "—"}</td>
                 <td>${formatDate(row.created_at)}</td>
                 <td class="dashboard-cell--status">${buildStatusCellInnerHtml(row)}</td>`;
+    }
+
+    function buildLastSuccessSubRowCells(row) {
+      const envLabel = row.environment || "—";
+      const repoUrl = `https://github.com/${row.owner}/${row.repo}`;
+      const repoCell = `<a href="${repoUrl}" target="_blank" rel="noopener">${row.repo}</a>`;
+      const successBadgeInner =
+        '<span class="status status--success status--inline">success</span>';
+      const successLbl = wrapStatusBadgeWithRunUrl(
+        successBadgeInner,
+        row.last_success_run_url
+      );
+      const statusInner = `<span class="status-meta">(posledný ${successLbl} – ${formatDate(row.last_success_at)})</span>`;
+      return `
+                <td class="dashboard-cell--sub-indent">${envLabel}</td>
+                <td>${repoCell}</td>
+                <td>${row.ref || "—"}</td>
+                <td>${formatDate(row.created_at)}</td>
+                <td class="dashboard-cell--status">${statusInner}</td>`;
+    }
+
+    /**
+     * Jeden logický záznam = jeden alebo dva riadky (podradený len pri last_success_at a stave ≠ success).
+     */
+    function buildTableRowsHtml(row, stripeAlt) {
+      const stripeClass = stripeAlt ? " dashboard-row--stripe-alt" : "";
+      const main = `<tr class="dashboard-row--primary${stripeClass}">${buildMainCells(row)}</tr>`;
+      if (row.last_success_at && !isSuccessState(row.state)) {
+        return `${main}<tr class="dashboard-row--last-success${stripeClass}">${buildLastSuccessSubRowCells(row)}</tr>`;
+      }
+      return main;
     }
 
     function renderByRepositorySection(rows) {
@@ -271,10 +311,11 @@
             `;
 
         const tbody = table.querySelector("tbody");
-        repoRows.forEach((row) => {
-          const tr = document.createElement("tr");
-          tr.innerHTML = buildTableRowHtml(row);
-          tbody.appendChild(tr);
+        repoRows.forEach((row, idx) => {
+          tbody.insertAdjacentHTML(
+            "beforeend",
+            buildTableRowsHtml(row, idx % 2 === 1)
+          );
         });
 
         section.appendChild(heading);
@@ -332,10 +373,11 @@
             `;
 
           const tbody = table.querySelector("tbody");
-          envRows.forEach((row) => {
-            const tr = document.createElement("tr");
-            tr.innerHTML = buildTableRowHtml(row);
-            tbody.appendChild(tr);
+          envRows.forEach((row, idx) => {
+            tbody.insertAdjacentHTML(
+              "beforeend",
+              buildTableRowsHtml(row, idx % 2 === 1)
+            );
           });
 
           section.appendChild(table);

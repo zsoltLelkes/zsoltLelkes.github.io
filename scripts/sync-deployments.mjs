@@ -93,10 +93,15 @@ async function fetchLatestDeploymentStatus(owner, repo, deploymentId, token) {
   };
 }
 
+function normalizeHttpUrl(u) {
+  if (!u || String(u).trim() === "") return null;
+  return String(u).trim();
+}
+
 /**
- * Čas najnovšieho statusu „success“ v histórii daného nasadenia (nie len najnovší status).
+ * Čas najnovšieho statusu „success“ v histórii daného nasadenia + voliteľný target_url (Actions / job).
  */
-async function fetchNewestSuccessTimeFromDeployment(
+async function fetchNewestSuccessInfoFromDeployment(
   owner,
   repo,
   deploymentId,
@@ -113,10 +118,13 @@ async function fetchNewestSuccessTimeFromDeployment(
     (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
   );
   const success = sorted.find((s) => statusState(s) === "success");
-  return success?.created_at || null;
+  if (!success?.created_at) return null;
+  const last_success_at = success.created_at;
+  const last_success_run_url = normalizeHttpUrl(success.target_url);
+  return { last_success_at, last_success_run_url };
 }
 
-async function fetchActionsNewestSuccessTimeForSha(owner, repo, sha, token) {
+async function fetchActionsNewestSuccessInfoForSha(owner, repo, sha, token) {
   if (!sha) return null;
   const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs?head_sha=${encodeURIComponent(sha)}&per_page=50`;
   try {
@@ -139,26 +147,43 @@ async function fetchActionsNewestSuccessTimeForSha(owner, repo, sha, token) {
         new Date(b.updated_at || 0) - new Date(a.updated_at || 0)
     );
     const run = sorted[0];
-    return (
+    const last_success_at =
       run.updated_at ||
       run.run_started_at ||
       run.created_at ||
-      null
-    );
+      null;
+    if (!last_success_at) return null;
+    const last_success_run_url = normalizeHttpUrl(run.html_url);
+    return { last_success_at, last_success_run_url };
   } catch {
     return null;
   }
 }
 
-async function fetchLastSuccessTimeForDeployment(owner, repo, deployment, token) {
-  const fromStatuses = await fetchNewestSuccessTimeFromDeployment(
+async function fetchLastSuccessInfoForDeployment(owner, repo, deployment, token) {
+  const fromStatuses = await fetchNewestSuccessInfoFromDeployment(
     owner,
     repo,
     deployment.id,
     token
   );
-  if (fromStatuses) return fromStatuses;
-  return await fetchActionsNewestSuccessTimeForSha(
+  if (fromStatuses) {
+    if (fromStatuses.last_success_run_url) return fromStatuses;
+    const fromActions = await fetchActionsNewestSuccessInfoForSha(
+      owner,
+      repo,
+      deployment.sha,
+      token
+    );
+    if (fromActions?.last_success_run_url) {
+      return {
+        ...fromStatuses,
+        last_success_run_url: fromActions.last_success_run_url
+      };
+    }
+    return fromStatuses;
+  }
+  return await fetchActionsNewestSuccessInfoForSha(
     owner,
     repo,
     deployment.sha,
@@ -231,7 +256,11 @@ async function findLastSuccessAtViaWorkflowPath(owner, repo, envName, token) {
       if (String(run.conclusion || "").toLowerCase() !== "success") continue;
       const path = run.path || "";
       if (workflowPathMatchesEnvironment(path, envName)) {
-        return run.updated_at || run.created_at || null;
+        const last_success_at = run.updated_at || run.created_at || null;
+        const last_success_run_url = normalizeHttpUrl(run.html_url);
+        return last_success_at
+          ? { last_success_at, last_success_run_url }
+          : null;
       }
     }
 
@@ -241,7 +270,7 @@ async function findLastSuccessAtViaWorkflowPath(owner, repo, envName, token) {
   return null;
 }
 
-async function findLastSuccessAt(owner, repo, envName, token) {
+async function findLastSuccessInfo(owner, repo, envName, token) {
   const viaPath = await findLastSuccessAtViaWorkflowPath(
     owner,
     repo,
@@ -275,14 +304,14 @@ async function findLastSuccessAt(owner, repo, envName, token) {
 
     for (const d of arr) {
       if (envName === "—" && deploymentEnvironmentKey(d) !== "—") continue;
-      const successAt = await fetchLastSuccessTimeForDeployment(
+      const info = await fetchLastSuccessInfoForDeployment(
         owner,
         repo,
         d,
         token
       );
-      if (successAt) {
-        return successAt;
+      if (info?.last_success_at) {
+        return info;
       }
     }
 
@@ -398,13 +427,19 @@ function main() {
         continue;
       }
       const envKey = row.environment || "—";
-      const last_success_at = await findLastSuccessAt(
+      const info = await findLastSuccessInfo(
         row.owner,
         row.repo,
         envKey,
         token
       );
-      rows.push({ ...row, last_success_at });
+      rows.push({
+        ...row,
+        last_success_at: info?.last_success_at ?? null,
+        ...(info?.last_success_run_url
+          ? { last_success_run_url: info.last_success_run_url }
+          : {})
+      });
     }
 
     const out = {
