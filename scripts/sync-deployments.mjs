@@ -392,7 +392,7 @@ async function findLastSuccessInfo(owner, repo, envName, token) {
     }
     let list;
     try {
-      list = await githubFetch(url);
+      list = await githubFetch(url, token);
     } catch {
       break;
     }
