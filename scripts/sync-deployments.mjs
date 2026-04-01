@@ -133,19 +133,6 @@ function jobEnvironmentName(job) {
   return null;
 }
 
-/**
- * Má workflow run aspoň jeden job s daným GitHub Environment (environment: v YAML)?
- * Dynamické — nezávislé od názvu súboru workflowu.
- */
-function workflowRunHasJobForEnvironment(jobs, envName) {
-  if (!envName || envName === "—") return true;
-  for (const job of jobs) {
-    const n = jobEnvironmentName(job);
-    if (n && String(n) === String(envName)) return true;
-  }
-  return false;
-}
-
 async function fetchWorkflowRunJobs(owner, repo, runId, token) {
   const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/jobs?per_page=100`;
   const res = await fetch(url, {
@@ -160,9 +147,19 @@ async function fetchWorkflowRunJobs(owner, repo, runId, token) {
   return Array.isArray(data.jobs) ? data.jobs : [];
 }
 
+/** Cache na jeden beh sync skriptu: rovnaký SHA + env → neopakovať desiatky GET /jobs */
+const actionsSuccessByShaEnvCache = new Map();
+
+function actionsSuccessCacheKey(owner, repo, sha, envName) {
+  return `${owner}\0${repo}\0${sha}\0${String(envName || "")}`;
+}
+
 /**
- * Úspešný beh pre daný commit, ktorý má job cielený na dané prostredie (paralelné vetvy v jednom run-e).
- * Nevyžaduje zhodu názvu env v ceste k YAML — páruje sa podľa job.environment z API.
+ * Najnovší úspešný *job* pre dané prostredie na danom commite.
+ *
+ * Dôležité: pri paralelných joboch môže mať celý workflow run conclusion "failure",
+ * hoci job s `environment: X` má conclusion "success" — preto sa nesmie filtrovať
+ * len podľa run.conclusion === success.
  */
 async function fetchActionsNewestSuccessInfoForSha(
   owner,
@@ -172,61 +169,85 @@ async function fetchActionsNewestSuccessInfoForSha(
   envName
 ) {
   if (!sha) return null;
-  const listUrl = `https://api.github.com/repos/${owner}/${repo}/actions/runs?head_sha=${encodeURIComponent(sha)}&per_page=100`;
+  const cacheKey = actionsSuccessCacheKey(owner, repo, sha, envName);
+  if (actionsSuccessByShaEnvCache.has(cacheKey)) {
+    return actionsSuccessByShaEnvCache.get(cacheKey);
+  }
+
+  const listUrl = `https://api.github.com/repos/${owner}/${repo}/actions/runs?head_sha=${encodeURIComponent(sha)}&per_page=50`;
   const headers = {
     Accept: "application/vnd.github+json",
     Authorization: `Bearer ${token}`,
     "X-GitHub-Api-Version": "2022-11-28"
   };
+
+  let result = null;
   try {
     const res = await fetch(listUrl, { headers });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      actionsSuccessByShaEnvCache.set(cacheKey, null);
+      return null;
+    }
     const data = await res.json();
     const runs = Array.isArray(data.workflow_runs) ? data.workflow_runs : [];
-    const ok = runs.filter(
-      (r) => String(r.conclusion || "").toLowerCase() === "success"
+    const completed = runs.filter(
+      (r) => String(r.status || "").toLowerCase() === "completed"
     );
-    if (ok.length === 0) return null;
-    const sorted = [...ok].sort(
+    const sorted = [...completed].sort(
       (a, b) =>
         new Date(b.updated_at || 0) - new Date(a.updated_at || 0)
     );
 
     if (!envName || envName === "—") {
-      const run = sorted[0];
-      const last_success_at =
-        run.updated_at ||
-        run.run_started_at ||
-        run.created_at ||
-        null;
-      if (!last_success_at) return null;
-      return {
-        last_success_at,
-        last_success_run_url: normalizeHttpUrl(run.html_url)
-      };
-    }
-
-    const maxRunsToInspect = 30;
-    for (let i = 0; i < Math.min(sorted.length, maxRunsToInspect); i++) {
-      const run = sorted[i];
-      const jobs = await fetchWorkflowRunJobs(owner, repo, run.id, token);
-      if (workflowRunHasJobForEnvironment(jobs, envName)) {
+      const successRuns = sorted.filter(
+        (r) => String(r.conclusion || "").toLowerCase() === "success"
+      );
+      const run = successRuns[0];
+      if (run) {
         const last_success_at =
           run.updated_at ||
           run.run_started_at ||
           run.created_at ||
           null;
-        if (!last_success_at) continue;
-        return {
-          last_success_at,
-          last_success_run_url: normalizeHttpUrl(run.html_url)
-        };
+        if (last_success_at) {
+          result = {
+            last_success_at,
+            last_success_run_url: normalizeHttpUrl(run.html_url)
+          };
+        }
+      }
+      actionsSuccessByShaEnvCache.set(cacheKey, result);
+      return result;
+    }
+
+    let best = null;
+    const maxRunsToInspect = 12;
+    for (let i = 0; i < Math.min(sorted.length, maxRunsToInspect); i++) {
+      const run = sorted[i];
+      const jobs = await fetchWorkflowRunJobs(owner, repo, run.id, token);
+      for (const job of jobs) {
+        if (String(job.conclusion || "").toLowerCase() !== "success") continue;
+        const n = jobEnvironmentName(job);
+        if (!n || String(n) !== String(envName)) continue;
+        const at = job.completed_at || job.started_at;
+        if (!at) continue;
+        const jobUrl = normalizeHttpUrl(job.html_url);
+        const runUrl = normalizeHttpUrl(run.html_url);
+        const url = jobUrl || runUrl;
+        if (
+          !best ||
+          new Date(at) > new Date(best.last_success_at)
+        ) {
+          best = { last_success_at: at, last_success_run_url: url };
+        }
       }
     }
-    return null;
+    result = best;
   } catch {
-    return null;
+    result = null;
   }
+  actionsSuccessByShaEnvCache.set(cacheKey, result);
+  return result;
 }
 
 async function fetchLastSuccessInfoForDeployment(owner, repo, deployment, token) {
