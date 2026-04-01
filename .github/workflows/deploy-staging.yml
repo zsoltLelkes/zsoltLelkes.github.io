@@ -1,3 +1,12 @@
+# Nasadenie do staging – paralelné vetvy na simuláciu (jeden beh, viac deploymentov).
+#
+# Pred prvým behom vytvor v repozitári: Settings → Environments → New environment:
+#   - staging          (už máš)
+#   - staging-parallel (nové – druhá „vetva“ paralelného behu)
+#
+# Manuálny beh: Actions → Deploy Staging → Run workflow
+#   - fail_lane_a / fail_lane_b: ktorá vetva má naschvál zlyhať (druhá môže byť OK).
+
 name: Deploy Staging
 
 on:
@@ -5,20 +14,38 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      fail_deploy:
-        description: "Zlyhaj nasadenie (test dashboardu – simulácia chyby)"
+      fail_lane_a:
+        description: "Vetva A (prostredie staging) – naschvál zlyhá"
+        type: boolean
+        default: false
+      fail_lane_b:
+        description: "Vetva B (prostredie staging-parallel) – naschvál zlyhá"
         type: boolean
         default: false
 
 jobs:
-  deploy:
+  # Paralelná vetva A – GitHub Environment „staging“ (deployment API = staging)
+  staging-lane-a:
     runs-on: ubuntu-latest
     environment: staging
     steps:
-      - name: Deploy staging
+      - name: Deploy staging (vetva A)
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.fail_deploy }}" = "true" ]; then
-            echo "::error title=Simulovaná chyba::Nasadenie do staging zlyhalo (naschvál)."
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.fail_lane_a }}" = "true" ]; then
+            echo "::error title=Simulovaná chyba::Vetva A – nasadenie do staging zlyhalo (naschvál)."
             exit 1
           fi
-          echo "Staging nasadenie OK"
+          echo "Staging (vetva A) OK"
+
+  # Paralelná vetva B – druhé prostredie v tom istom behu (paralelné deploymenty)
+  staging-lane-b:
+    runs-on: ubuntu-latest
+    environment: staging-parallel
+    steps:
+      - name: Deploy staging-parallel (vetva B)
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.fail_lane_b }}" = "true" ]; then
+            echo "::error title=Simulovaná chyba::Vetva B – nasadenie do staging-parallel zlyhalo (naschvál)."
+            exit 1
+          fi
+          echo "Staging-parallel (vetva B) OK"
