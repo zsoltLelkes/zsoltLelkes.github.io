@@ -1,35 +1,43 @@
 {
-  "generatedAt": "2026-04-01T08:41:39.396Z",
+  "generatedAt": "2026-04-01T09:00:31.359Z",
   "organization": "zsoltLelkes",
   "rows": [
     {
       "owner": "zsoltLelkes",
       "repo": "zsoltLelkes.github.io",
-      "environment": "github-pages",
+      "environment": "staging",
       "ref": "main",
-      "created_at": "2026-04-01T07:13:51Z",
+      "created_at": "2026-04-01T08:59:40Z",
       "state": "success",
-      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/23836681730/job/69482102415"
+      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/23840646442/job/69495123885"
     },
     {
       "owner": "zsoltLelkes",
       "repo": "zsoltLelkes.github.io",
-      "environment": "staging",
+      "environment": "staging-parallel",
       "ref": "main",
-      "created_at": "2026-03-30T10:37:43Z",
+      "created_at": "2026-04-01T08:59:40Z",
       "state": "failure",
-      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/23740501807/job/69156089428",
-      "last_success_at": "2026-03-30T10:32:16Z",
-      "last_success_run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/23740289460"
+      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/23840646442/job/69495123759",
+      "last_success_at": null
+    },
+    {
+      "owner": "zsoltLelkes",
+      "repo": "zsoltLelkes.github.io",
+      "environment": "github-pages",
+      "ref": "main",
+      "created_at": "2026-04-01T08:57:21Z",
+      "state": "success",
+      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/23840535431/job/69494805968"
     },
     {
       "owner": "zsoltLelkes",
       "repo": "zsoltLelkes.github.io",
       "environment": "development",
       "ref": "main",
-      "created_at": "2026-03-30T10:32:11Z",
+      "created_at": "2026-04-01T08:44:20Z",
       "state": "success",
-      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/23740289441/job/69155370787"
+      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/23840023043/job/69493010879"
     },
     {
       "owner": "zsoltLelkes",
