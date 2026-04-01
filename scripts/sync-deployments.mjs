@@ -114,27 +114,72 @@ async function fetchNewestSuccessInfoFromDeployment(
     token
   );
   if (statuses.length === 0) return null;
-  const sorted = [...statuses].sort(
-    (a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0)
+  const successes = statuses.filter((s) => statusState(s) === "success");
+  if (successes.length === 0) return null;
+  const success = successes.reduce((a, b) =>
+    new Date(a.created_at || 0) > new Date(b.created_at || 0) ? a : b
   );
-  const success = sorted.find((s) => statusState(s) === "success");
   if (!success?.created_at) return null;
   const last_success_at = success.created_at;
   const last_success_run_url = normalizeHttpUrl(success.target_url);
   return { last_success_at, last_success_run_url };
 }
 
-async function fetchActionsNewestSuccessInfoForSha(owner, repo, sha, token) {
+function jobEnvironmentName(job) {
+  const e = job?.environment;
+  if (e == null || e === "") return null;
+  if (typeof e === "string") return e;
+  if (typeof e === "object" && e.name != null) return String(e.name);
+  return null;
+}
+
+/**
+ * Má workflow run aspoň jeden job s daným GitHub Environment (environment: v YAML)?
+ * Dynamické — nezávislé od názvu súboru workflowu.
+ */
+function workflowRunHasJobForEnvironment(jobs, envName) {
+  if (!envName || envName === "—") return true;
+  for (const job of jobs) {
+    const n = jobEnvironmentName(job);
+    if (n && String(n) === String(envName)) return true;
+  }
+  return false;
+}
+
+async function fetchWorkflowRunJobs(owner, repo, runId, token) {
+  const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/jobs?per_page=100`;
+  const res = await fetch(url, {
+    headers: {
+      Accept: "application/vnd.github+json",
+      Authorization: `Bearer ${token}`,
+      "X-GitHub-Api-Version": "2022-11-28"
+    }
+  });
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data.jobs) ? data.jobs : [];
+}
+
+/**
+ * Úspešný beh pre daný commit, ktorý má job cielený na dané prostredie (paralelné vetvy v jednom run-e).
+ * Nevyžaduje zhodu názvu env v ceste k YAML — páruje sa podľa job.environment z API.
+ */
+async function fetchActionsNewestSuccessInfoForSha(
+  owner,
+  repo,
+  sha,
+  token,
+  envName
+) {
   if (!sha) return null;
-  const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs?head_sha=${encodeURIComponent(sha)}&per_page=50`;
+  const listUrl = `https://api.github.com/repos/${owner}/${repo}/actions/runs?head_sha=${encodeURIComponent(sha)}&per_page=100`;
+  const headers = {
+    Accept: "application/vnd.github+json",
+    Authorization: `Bearer ${token}`,
+    "X-GitHub-Api-Version": "2022-11-28"
+  };
   try {
-    const res = await fetch(url, {
-      headers: {
-        Accept: "application/vnd.github+json",
-        Authorization: `Bearer ${token}`,
-        "X-GitHub-Api-Version": "2022-11-28"
-      }
-    });
+    const res = await fetch(listUrl, { headers });
     if (!res.ok) return null;
     const data = await res.json();
     const runs = Array.isArray(data.workflow_runs) ? data.workflow_runs : [];
@@ -146,21 +191,46 @@ async function fetchActionsNewestSuccessInfoForSha(owner, repo, sha, token) {
       (a, b) =>
         new Date(b.updated_at || 0) - new Date(a.updated_at || 0)
     );
-    const run = sorted[0];
-    const last_success_at =
-      run.updated_at ||
-      run.run_started_at ||
-      run.created_at ||
-      null;
-    if (!last_success_at) return null;
-    const last_success_run_url = normalizeHttpUrl(run.html_url);
-    return { last_success_at, last_success_run_url };
+
+    if (!envName || envName === "—") {
+      const run = sorted[0];
+      const last_success_at =
+        run.updated_at ||
+        run.run_started_at ||
+        run.created_at ||
+        null;
+      if (!last_success_at) return null;
+      return {
+        last_success_at,
+        last_success_run_url: normalizeHttpUrl(run.html_url)
+      };
+    }
+
+    const maxRunsToInspect = 30;
+    for (let i = 0; i < Math.min(sorted.length, maxRunsToInspect); i++) {
+      const run = sorted[i];
+      const jobs = await fetchWorkflowRunJobs(owner, repo, run.id, token);
+      if (workflowRunHasJobForEnvironment(jobs, envName)) {
+        const last_success_at =
+          run.updated_at ||
+          run.run_started_at ||
+          run.created_at ||
+          null;
+        if (!last_success_at) continue;
+        return {
+          last_success_at,
+          last_success_run_url: normalizeHttpUrl(run.html_url)
+        };
+      }
+    }
+    return null;
   } catch {
     return null;
   }
 }
 
 async function fetchLastSuccessInfoForDeployment(owner, repo, deployment, token) {
+  const envName = deploymentEnvironmentKey(deployment);
   const fromStatuses = await fetchNewestSuccessInfoFromDeployment(
     owner,
     repo,
@@ -173,7 +243,8 @@ async function fetchLastSuccessInfoForDeployment(owner, repo, deployment, token)
       owner,
       repo,
       deployment.sha,
-      token
+      token,
+      envName
     );
     if (fromActions?.last_success_run_url) {
       return {
@@ -187,7 +258,8 @@ async function fetchLastSuccessInfoForDeployment(owner, repo, deployment, token)
     owner,
     repo,
     deployment.sha,
-    token
+    token,
+    envName
   );
 }
 
@@ -218,6 +290,10 @@ async function fetchWorkflowRunUrlForSha(owner, repo, sha, token) {
   }
 }
 
+/**
+ * Heuristika len pre záložné vyhľadávanie podľa cesty súboru (môže sedieť s názvom env v názve YAML).
+ * Primárne párovanie prostredia k behu je cez job.environment v fetchActionsNewestSuccessInfoForSha.
+ */
 function workflowPathMatchesEnvironment(workflowPath, envName) {
   if (!workflowPath || !envName || envName === "—") return false;
   const p = workflowPath.toLowerCase();
@@ -227,6 +303,12 @@ function workflowPathMatchesEnvironment(workflowPath, envName) {
     return true;
   }
   return false;
+}
+
+function mergeBestLastSuccessInfo(a, b) {
+  if (!b?.last_success_at) return a ?? null;
+  if (!a?.last_success_at) return b;
+  return new Date(b.last_success_at) > new Date(a.last_success_at) ? b : a;
 }
 
 async function findLastSuccessAtViaWorkflowPath(owner, repo, envName, token) {
@@ -271,14 +353,8 @@ async function findLastSuccessAtViaWorkflowPath(owner, repo, envName, token) {
 }
 
 async function findLastSuccessInfo(owner, repo, envName, token) {
-  const viaPath = await findLastSuccessAtViaWorkflowPath(
-    owner,
-    repo,
-    envName,
-    token
-  );
-  if (viaPath) return viaPath;
-
+  /* 1) História deploymentov pre dané prostredie (najnovší fail + starší success v API) */
+  let best = null;
   let page = 1;
   const maxPages = 15;
   while (page <= maxPages) {
@@ -311,14 +387,18 @@ async function findLastSuccessInfo(owner, repo, envName, token) {
         token
       );
       if (info?.last_success_at) {
-        return info;
+        best = mergeBestLastSuccessInfo(best, info);
       }
     }
 
     if (arr.length < 100) break;
     page += 1;
   }
-  return null;
+
+  if (best) return best;
+
+  /* 2) Záloha: globálny prehľad behov podľa cesty workflowu */
+  return await findLastSuccessAtViaWorkflowPath(owner, repo, envName, token);
 }
 
 async function fetchRepoDeployments(owner, repo, token) {
