@@ -422,6 +422,40 @@ async function findLastSuccessInfo(owner, repo, envName, token) {
   return await findLastSuccessAtViaWorkflowPath(owner, repo, envName, token);
 }
 
+/**
+ * Načíta všetky nakonfigurované prostredia z Environments API (nezávislé od veku deploymentu).
+ * Ak endpoint nie je prístupný (chýba oprávnenie / starší server), vráti prázdne pole.
+ */
+async function fetchEnvironmentNames(owner, repo, token) {
+  const names = [];
+  let page = 1;
+  const maxPages = 5;
+  while (page <= maxPages) {
+    const url = `https://api.github.com/repos/${owner}/${repo}/environments?per_page=100&page=${page}`;
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Accept: "application/vnd.github+json",
+          Authorization: `Bearer ${token}`,
+          "X-GitHub-Api-Version": "2022-11-28"
+        }
+      });
+      if (!res.ok) break;
+      const data = await res.json();
+      const envs = Array.isArray(data.environments) ? data.environments : [];
+      if (envs.length === 0) break;
+      for (const e of envs) {
+        if (e.name) names.push(e.name);
+      }
+      if (envs.length < 100) break;
+      page += 1;
+    } catch {
+      break;
+    }
+  }
+  return names;
+}
+
 async function fetchRepoDeployments(owner, repo, token) {
   const discoverUrl = `https://api.github.com/repos/${owner}/${repo}/deployments?per_page=${DISCOVER_DEPLOYMENTS_PAGE_SIZE}`;
   let discoverList;
@@ -433,6 +467,11 @@ async function fetchRepoDeployments(owner, repo, token) {
   }
   discoverList = Array.isArray(discoverList) ? discoverList : [];
   const envNames = new Set(discoverList.map(deploymentEnvironmentKey));
+
+  const extraEnvNames = await fetchEnvironmentNames(owner, repo, token);
+  for (const n of extraEnvNames) {
+    envNames.add(n);
+  }
 
   const perEnvLists = await Promise.all(
     Array.from(envNames).map(async (envName) => {
