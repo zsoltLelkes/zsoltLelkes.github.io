@@ -353,7 +353,7 @@
       );
       const lastSuccessTime = formatDate(row.last_success_at);
       const lastSuccessRef = row.last_success_ref || "—";
-      const statusInner = `<span class="status-meta">posledný ${successLbl} – ${lastSuccessTime}</span>`;
+      const statusInner = `<span class="status-meta">posledný ${successLbl}</span>`;
       if (omitRepo) {
         return `
                 <td>${envLabel}</td>
