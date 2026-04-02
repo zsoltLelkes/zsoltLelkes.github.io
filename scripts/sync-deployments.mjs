@@ -221,7 +221,7 @@ async function fetchActionsNewestSuccessInfoForSha(
     }
 
     let best = null;
-    const maxRunsToInspect = 12;
+    const maxRunsToInspect = 5;
     for (let i = 0; i < Math.min(sorted.length, maxRunsToInspect); i++) {
       const run = sorted[i];
       const jobs = await fetchWorkflowRunJobs(owner, repo, run.id, token);
@@ -250,38 +250,19 @@ async function fetchActionsNewestSuccessInfoForSha(
   return result;
 }
 
-async function fetchLastSuccessInfoForDeployment(owner, repo, deployment, token) {
-  const envName = deploymentEnvironmentKey(deployment);
-  const fromStatuses = await fetchNewestSuccessInfoFromDeployment(
+async function fetchQuickSuccessInfoFromDeployment(owner, repo, deployment, token) {
+  const info = await fetchNewestSuccessInfoFromDeployment(
     owner,
     repo,
     deployment.id,
     token
   );
-  if (fromStatuses) {
-    if (fromStatuses.last_success_run_url) return fromStatuses;
-    const fromActions = await fetchActionsNewestSuccessInfoForSha(
-      owner,
-      repo,
-      deployment.sha,
-      token,
-      envName
-    );
-    if (fromActions?.last_success_run_url) {
-      return {
-        ...fromStatuses,
-        last_success_run_url: fromActions.last_success_run_url
-      };
-    }
-    return fromStatuses;
-  }
-  return await fetchActionsNewestSuccessInfoForSha(
-    owner,
-    repo,
-    deployment.sha,
-    token,
-    envName
-  );
+  if (!info) return null;
+  return {
+    last_success_at: info.last_success_at,
+    last_success_run_url: info.last_success_run_url || null,
+    last_success_ref: deployment.ref ?? null
+  };
 }
 
 /** Odkaz na workflow run pre commit (ak GitHub Actions v repozitári existujú). */
@@ -340,7 +321,7 @@ async function findLastSuccessAtViaWorkflowPath(owner, repo, envName, token) {
     "X-GitHub-Api-Version": "2022-11-28"
   };
   let page = 1;
-  const maxPages = 20;
+  const maxPages = 3;
 
   while (page <= maxPages) {
     const url = `https://api.github.com/repos/${owner}/${repo}/actions/runs?per_page=100&page=${page}`;
@@ -374,18 +355,18 @@ async function findLastSuccessAtViaWorkflowPath(owner, repo, envName, token) {
 }
 
 async function findLastSuccessInfo(owner, repo, envName, token) {
-  /* 1) História deploymentov pre dané prostredie (najnovší fail + starší success v API) */
-  let best = null;
+  /* 1) História deploymentov (API vracia od najnovšieho) – len statuses, žiadne Actions volania.
+   *    Max 10 stránok × 30 = 300 deploymentov, ale vďaka early return typicky 1–3 volania. */
   let page = 1;
-  const maxPages = 15;
+  const maxPages = 10;
   while (page <= maxPages) {
     let url;
     if (envName === "—") {
-      url = `https://api.github.com/repos/${owner}/${repo}/deployments?per_page=100&page=${page}`;
+      url = `https://api.github.com/repos/${owner}/${repo}/deployments?per_page=30&page=${page}`;
     } else {
       const params = new URLSearchParams({
         environment: envName,
-        per_page: "100",
+        per_page: "30",
         page: String(page)
       });
       url = `https://api.github.com/repos/${owner}/${repo}/deployments?${params}`;
@@ -401,22 +382,20 @@ async function findLastSuccessInfo(owner, repo, envName, token) {
 
     for (const d of arr) {
       if (envName === "—" && deploymentEnvironmentKey(d) !== "—") continue;
-      const info = await fetchLastSuccessInfoForDeployment(
+      const info = await fetchQuickSuccessInfoFromDeployment(
         owner,
         repo,
         d,
         token
       );
       if (info?.last_success_at) {
-        best = mergeBestLastSuccessInfo(best, info);
+        return info;
       }
     }
 
-    if (arr.length < 100) break;
+    if (arr.length < 30) break;
     page += 1;
   }
-
-  if (best) return best;
 
   /* 2) Záloha: globálny prehľad behov podľa cesty workflowu */
   return await findLastSuccessAtViaWorkflowPath(owner, repo, envName, token);
@@ -578,6 +557,9 @@ function main() {
         last_success_at: info?.last_success_at ?? null,
         ...(info?.last_success_run_url
           ? { last_success_run_url: info.last_success_run_url }
+          : {}),
+        ...(info?.last_success_ref
+          ? { last_success_ref: info.last_success_ref }
           : {})
       });
     }

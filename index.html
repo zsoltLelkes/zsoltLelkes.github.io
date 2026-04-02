@@ -352,18 +352,19 @@
         row.last_success_run_url
       );
       const lastSuccessTime = formatDate(row.last_success_at);
+      const lastSuccessRef = row.last_success_ref || "—";
       const statusInner = `<span class="status-meta">posledný ${successLbl} – ${lastSuccessTime}</span>`;
       if (omitRepo) {
         return `
                 <td>${envLabel}</td>
-                <td>${row.ref || "—"}</td>
+                <td>${lastSuccessRef}</td>
                 <td>${lastSuccessTime}</td>
                 <td class="dashboard-cell--status">${statusInner}</td>`;
       }
       return `
                 <td>${envLabel}</td>
                 <td>${repoCell}</td>
-                <td>${row.ref || "—"}</td>
+                <td>${lastSuccessRef}</td>
                 <td>${lastSuccessTime}</td>
                 <td class="dashboard-cell--status">${statusInner}</td>`;
     }
