@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-04T14:44:59.379Z",
+  "generatedAt": "2026-07-04T15:47:22.817Z",
   "organization": "zsoltLelkes",
   "rows": [
     {
@@ -7,12 +7,9 @@
       "repo": "zsoltLelkes.github.io",
       "environment": "github-pages",
       "ref": "main",
-      "created_at": "2026-07-04T13:11:29Z",
-      "state": "failure",
-      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/28707280282/job/85134965287",
-      "last_success_at": "2026-07-04T11:50:34Z",
-      "last_success_run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/28705276131/job/85129842916",
-      "last_success_ref": "main"
+      "created_at": "2026-07-04T14:45:22Z",
+      "state": "success",
+      "run_url": "https://github.com/zsoltLelkes/zsoltLelkes.github.io/actions/runs/28709695020/job/85141101715"
     },
     {
       "owner": "zsoltLelkes",
